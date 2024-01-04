@@ -1,0 +1,12 @@
+*
+!*/
+
+/target
+
+!*.rs
+
+!.gitignore
+!README.md
+!Cargo.toml
+
+!.github/*.yml
