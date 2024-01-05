@@ -79,10 +79,10 @@ impl UseHookExt for egui::Ui {
                     backend
                 } else {
                     // The dependencies are changed, so we need to re-initialize the hook
-                    hook.init(self)
+                    hook.init(hook_index, self)
                 }
             } else {
-                hook.init(self)
+                hook.init(hook_index, self)
             };
         let output = hook.hook(&mut backend, self);
         GLOBAL_DISPATCHER.push_backend::<T>(id, backend, boxed_deps);

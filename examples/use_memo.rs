@@ -16,7 +16,7 @@ impl eframe::App for MyApp {
                     println!("Calculating memoized value");
                     count.pow(2)
                 },
-                (count.clone(),),
+                count.clone(),
             );
             ui.label(format!("Count: {}", count));
             ui.label(format!("Memo: {}", memo));

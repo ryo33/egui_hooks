@@ -7,7 +7,7 @@ pub struct MemoHook<F> {
 impl<T: Clone + Send + Sync + 'static, F: FnMut() -> T> Hook for MemoHook<F> {
     type Backend = T;
     type Output = T;
-    fn init(&mut self, _ui: &mut egui::Ui) -> Self::Backend {
+    fn init(&mut self, _index: usize, _ui: &mut egui::Ui) -> Self::Backend {
         (self.callback)()
     }
     fn hook(self, backend: &mut Self::Backend, _ui: &mut egui::Ui) -> Self::Output {
