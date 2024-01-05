@@ -8,7 +8,12 @@ use egui::util::cache::{ComputerMut, FrameCache};
 use crate::{
     deps::Deps,
     dispatcher::GLOBAL_DISPATCHER,
-    hook::{effect::EffectHook, memo::MemoHook, state::StateHook, Hook},
+    hook::{
+        effect::EffectHook,
+        memo::MemoHook,
+        state::{State, StateHook},
+        Hook,
+    },
 };
 
 pub trait UseHookExt {
@@ -17,7 +22,7 @@ pub trait UseHookExt {
         &mut self,
         default: T,
         deps: D,
-    ) -> (Arc<T>, Box<dyn Fn(T)>);
+    ) -> State<T>;
     fn use_memo<T: Clone + Send + Sync + 'static, F: FnMut() -> T, D: Deps>(
         &mut self,
         callback: F,
@@ -88,8 +93,8 @@ impl UseHookExt for egui::Ui {
         &mut self,
         default: T,
         deps: D,
-    ) -> (Arc<T>, Box<dyn Fn(T)>) {
-        self.use_hook(StateHook { default }, deps)
+    ) -> State<T> {
+        self.use_hook(StateHook::new(default), deps)
     }
 
     fn use_memo<T: Clone + Send + Sync + 'static, F: FnMut() -> T, D: Deps>(

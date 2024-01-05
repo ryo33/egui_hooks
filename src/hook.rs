@@ -5,7 +5,7 @@ pub mod state;
 use egui::util::id_type_map::SerializableAny;
 
 pub trait Hook {
-    type Backend: Clone + Send + Sync + 'static;
+    type Backend: Send + Sync + 'static;
     type Output: 'static;
     /// Called when the hook is first called
     fn init(&mut self, ui: &mut egui::Ui) -> Self::Backend;
