@@ -1,29 +1,20 @@
-use std::{
-    any::{Any, TypeId},
-    collections::HashMap,
-};
+use std::any::{Any, TypeId};
 
 use egui::mutex::RwLock;
 
-use crate::{deps::DynDeps, hook::Hook};
+use crate::{deps::DynDeps, hook::Hook, two_frame_map::TwoFrameMap};
 
 #[derive(Default)]
 pub struct Dispatcher {
-    inner: RwLock<Inner>,
-}
-
-#[derive(Default)]
-pub struct Inner {
-    frame_nr: u64,
-    previous: Components,
-    current: Components,
-}
-
-#[derive(Default)]
-struct Components {
     // Option<Backend> is used to allow `Option::take` to get owned value from vec without changing
     // the length of the vec or cloning the value.
-    map: HashMap<egui::Id, Vec<Option<Backend>>>,
+    inner: RwLock<TwoFrameMap<egui::Id, Vec<Option<Backend>>>>,
+}
+
+#[test]
+fn dispatcher_is_send_and_sync() {
+    fn assert_send_and_sync<T: Send + Sync>() {}
+    assert_send_and_sync::<Dispatcher>();
 }
 
 struct Backend {
@@ -34,11 +25,7 @@ struct Backend {
 
 impl Dispatcher {
     pub(crate) fn may_advance_frame(&self, frame_nr: u64) {
-        let mut inner = self.inner.write();
-        if frame_nr != inner.frame_nr {
-            inner.frame_nr = frame_nr;
-            inner.previous = std::mem::take(&mut inner.current);
-        }
+        self.inner.write().may_advance_frame(frame_nr);
     }
 
     pub(crate) fn get_backend<T: Hook>(
@@ -49,8 +36,6 @@ impl Dispatcher {
         let backend = self
             .inner
             .write()
-            .previous
-            .map
             .get_mut(&id)
             .and_then(|backends| backends.get_mut(index).and_then(Option::take));
         if let Some(backend) = backend {
@@ -79,8 +64,6 @@ impl Dispatcher {
     ) {
         self.inner
             .write()
-            .current
-            .map
             .entry(id)
             .or_default()
             .push(Some(Backend {
