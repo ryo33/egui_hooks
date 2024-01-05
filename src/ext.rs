@@ -3,14 +3,18 @@ use std::sync::{
     Arc,
 };
 
-use egui::util::cache::{ComputerMut, FrameCache};
+use egui::util::{
+    cache::{ComputerMut, FrameCache},
+    id_type_map::SerializableAny,
+};
 
 use crate::{
     deps::Deps,
-    dispatcher::GLOBAL_DISPATCHER,
+    dispatcher::Dispatcher,
     hook::{
         effect::EffectHook,
         memo::MemoHook,
+        persistent_state::PersistentStateHook,
         state::{State, StateHook},
         Hook,
     },
@@ -19,6 +23,11 @@ use crate::{
 pub trait UseHookExt {
     fn use_hook<T: Hook, D: Deps>(&mut self, hook: T, deps: D) -> T::Output;
     fn use_state<T: Clone + Send + Sync + 'static, D: Deps>(
+        &mut self,
+        default: T,
+        deps: D,
+    ) -> State<T>;
+    fn use_persistent_state<T: SerializableAny, D: Deps>(
         &mut self,
         default: T,
         deps: D,
@@ -72,9 +81,13 @@ impl UseHookExt for egui::Ui {
             context.next_hook_index.fetch_add(1, Ordering::SeqCst)
         });
         let boxed_deps = Box::new(deps);
-        GLOBAL_DISPATCHER.may_advance_frame(self.ctx().frame_nr());
+        let dispatcher = self.data_mut(|data| {
+            data.get_temp_mut_or_default::<Arc<Dispatcher>>(egui::Id::NULL)
+                .clone()
+        });
+        dispatcher.may_advance_frame(self.ctx().frame_nr());
         let mut backend =
-            if let Some((backend, old_deps)) = GLOBAL_DISPATCHER.get_backend::<T>(id, hook_index) {
+            if let Some((backend, old_deps)) = dispatcher.get_backend::<T>(id, hook_index) {
                 if old_deps.partial_eq(boxed_deps.as_ref()) {
                     backend
                 } else {
@@ -85,7 +98,7 @@ impl UseHookExt for egui::Ui {
                 hook.init(hook_index, self)
             };
         let output = hook.hook(&mut backend, self);
-        GLOBAL_DISPATCHER.push_backend::<T>(id, backend, boxed_deps);
+        dispatcher.push_backend::<T>(id, backend, boxed_deps);
         output
     }
 
@@ -95,6 +108,14 @@ impl UseHookExt for egui::Ui {
         deps: D,
     ) -> State<T> {
         self.use_hook(StateHook::new(default), deps)
+    }
+
+    fn use_persistent_state<T: SerializableAny, D: Deps>(
+        &mut self,
+        default: T,
+        deps: D,
+    ) -> State<T> {
+        self.use_hook(PersistentStateHook::new(default), deps)
     }
 
     fn use_memo<T: Clone + Send + Sync + 'static, F: FnMut() -> T, D: Deps>(

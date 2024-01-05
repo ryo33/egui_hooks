@@ -26,7 +26,59 @@ pub(crate) enum StateHookInner<T: Any> {
     Taken,
 }
 
+impl<T: 'static> StateHookInner<T> {
+    pub fn take(&mut self) -> T {
+        match std::mem::replace(self, StateHookInner::Taken) {
+            StateHookInner::Default(default) => default,
+            StateHookInner::Taken => panic!("StateHook::init called twice?"),
+        }
+    }
+}
+
+#[cfg_attr(feature = "persistence", derive(serde::Serialize, serde::Deserialize))]
 pub struct StateBackend<T> {
+    inner: Arc<ArcSwap<StateBackendInner<T>>>,
+}
+
+impl<T> StateBackend<T> {
+    pub(crate) fn new(current: Arc<T>, previous: Option<Arc<T>>) -> Self {
+        Self {
+            inner: Arc::new(ArcSwap::from(Arc::new(StateBackendInner {
+                current,
+                previous,
+            }))),
+        }
+    }
+
+    pub(crate) fn load(&self) -> impl std::ops::Deref<Target = Arc<StateBackendInner<T>>> {
+        self.inner.load()
+    }
+
+    pub(crate) fn store(&self, current: Arc<T>, previous: Option<Arc<T>>) {
+        self.inner
+            .store(Arc::new(StateBackendInner { current, previous }));
+    }
+
+    pub(crate) fn rcu(&self, f: impl Fn(&T) -> T, previous: Option<Arc<T>>) {
+        self.inner.rcu(move |inner| {
+            Arc::new(StateBackendInner {
+                current: Arc::new(f(&inner.current)),
+                previous: previous.clone(),
+            })
+        });
+    }
+}
+
+impl<T> Clone for StateBackend<T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+#[cfg_attr(feature = "persistence", derive(serde::Serialize, serde::Deserialize))]
+pub struct StateBackendInner<T> {
     pub(crate) current: Arc<T>,
     pub(crate) previous: Option<Arc<T>>,
 }
@@ -35,28 +87,13 @@ impl<T> Hook for StateHook<T>
 where
     T: Any + Send + Sync,
 {
-    type Backend = Arc<ArcSwap<StateBackend<T>>>;
+    type Backend = StateBackend<T>;
     type Output = State<T>;
     fn init(&mut self, _index: usize, _ui: &mut egui::Ui) -> Self::Backend {
-        let inner = std::mem::replace(&mut self.inner, StateHookInner::Taken);
-        let default = match inner {
-            StateHookInner::Default(default) => default,
-            StateHookInner::Taken => panic!("StateHook::init called twice?"),
-        };
-        let default = Arc::new(default);
-        Arc::new(ArcSwap::from(Arc::new(StateBackend {
-            current: default.clone(),
-            previous: None,
-        })))
+        StateBackend::new(Arc::new(self.inner.take()), None)
     }
     fn hook(self, backend: &mut Self::Backend, _ui: &mut egui::Ui) -> Self::Output {
-        let guard = backend.load();
-        State {
-            current: guard.current.clone(),
-            previous: guard.previous.clone(),
-            backend: backend.clone(),
-            subscriber: None,
-        }
+        State::new(backend)
     }
 }
 
@@ -64,13 +101,10 @@ where
 /// The container of current state and previous state returned by `use_state`. Clone is cheap as
 /// `Arc` is used internally.
 pub struct State<T> {
-    pub(crate) current: Arc<T>,
+    current: Arc<T>,
     previous: Option<Arc<T>>,
-    backend: Arc<ArcSwap<StateBackend<T>>>,
-    subscriber: Option<Subscriber<T>>,
+    backend: StateBackend<T>,
 }
-
-type Subscriber<T> = Arc<dyn Fn(&Arc<T>) + Send + Sync + 'static>;
 
 #[test]
 fn test_state_is_send_sync() {
@@ -79,6 +113,15 @@ fn test_state_is_send_sync() {
 }
 
 impl<T> State<T> {
+    pub(crate) fn new(backend: &mut StateBackend<T>) -> Self {
+        let guard = backend.load();
+        Self {
+            current: guard.current.clone(),
+            previous: guard.previous.clone(),
+            backend: backend.clone(),
+        }
+    }
+
     /// Get the previous value of the state. This is useful for using in effect hooks.
     /// Even if set_state is called multiple times in a frame, this returns the value at the
     /// previous `use_state`. This helps to do some cleanup depending on the previous state in
@@ -89,32 +132,14 @@ impl<T> State<T> {
 
     /// Set the next value of the state that will be used in the next frame.
     pub fn set_next(&self, next: T) {
-        let next = Arc::new(next);
-        if let Some(subscriber) = self.subscriber.as_ref() {
-            subscriber(&next);
-        }
-        self.backend.store(Arc::new(StateBackend {
-            current: next,
-            previous: Some(self.current.clone()),
-        }));
+        self.backend
+            .store(Arc::new(next), Some(self.current.clone()));
     }
 
     /// Set the next value of the state with a function that takes the current state or the next
     /// state if already set in the current frame with `set_next` or `update_next`.
     pub fn update_next(&self, f: impl Fn(&T) -> T) {
-        self.backend.rcu(|inner| {
-            Arc::new(StateBackend {
-                current: Arc::new(f(&inner.current)),
-                previous: Some(self.current.clone()),
-            })
-        });
-        if let Some(subscriber) = self.subscriber.as_ref() {
-            subscriber(&self.backend.load().current);
-        }
-    }
-
-    pub(crate) fn subscribe(&mut self, subscriber: impl Fn(&Arc<T>) + Send + Sync + 'static) {
-        self.subscriber = Some(Arc::new(subscriber));
+        self.backend.rcu(f, Some(self.current.clone()));
     }
 }
 
@@ -143,7 +168,6 @@ impl<T> Clone for State<T> {
             current: self.current.clone(),
             previous: self.previous.clone(),
             backend: self.backend.clone(),
-            subscriber: self.subscriber.clone(),
         }
     }
 }
@@ -280,51 +304,5 @@ fn test_update_can_use_value_from_set_next() {
         let state = hook.hook(&mut backend, ui);
         assert_eq!(*state, 101);
         assert_eq!(state.previous(), Some(&42));
-    });
-}
-
-#[test]
-fn test_subscribe_set_next() {
-    let ctx = egui::Context::default();
-    egui::Area::new("test").show(&ctx, |ui| {
-        let mut hook = StateHook::new(42);
-        let mut backend = hook.init(0, ui);
-        let mut state = hook.hook(&mut backend, ui);
-
-        let events = Arc::new(egui::mutex::RwLock::new(Vec::new()));
-        let cloned_events = events.clone();
-        state.subscribe(move |next| cloned_events.write().push(next.clone()));
-
-        state.set_next(1);
-        state.set_next(10);
-        state.set_next(100);
-
-        assert_eq!(
-            *events.read(),
-            vec![Arc::new(1), Arc::new(10), Arc::new(100)]
-        );
-    });
-}
-
-#[test]
-fn test_subscribe_update_next() {
-    let ctx = egui::Context::default();
-    egui::Area::new("test").show(&ctx, |ui| {
-        let mut hook = StateHook::new(42);
-        let mut backend = hook.init(0, ui);
-        let mut state = hook.hook(&mut backend, ui);
-
-        let events = Arc::new(egui::mutex::RwLock::new(Vec::new()));
-        let cloned_events = events.clone();
-        state.subscribe(move |next| cloned_events.write().push(next.clone()));
-
-        state.update_next(|x| x + 1);
-        state.update_next(|x| x + 10);
-        state.update_next(|x| x + 100);
-
-        assert_eq!(
-            *events.read(),
-            vec![Arc::new(43), Arc::new(53), Arc::new(153)]
-        );
     });
 }

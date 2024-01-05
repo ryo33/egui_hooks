@@ -4,11 +4,8 @@ use std::{
 };
 
 use egui::mutex::RwLock;
-use once_cell::sync::Lazy;
 
 use crate::{deps::DynDeps, hook::Hook};
-
-pub(crate) static GLOBAL_DISPATCHER: Lazy<Dispatcher> = Lazy::new(Default::default);
 
 #[derive(Default)]
 pub struct Dispatcher {

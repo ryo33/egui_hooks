@@ -1,56 +1,41 @@
 use std::sync::Arc;
 
-use arc_swap::ArcSwap;
 use egui::util::id_type_map::SerializableAny;
 
 use super::{
-    state::{State, StateBackend, StateHook},
+    state::{State, StateBackend, StateHookInner},
     Hook,
 };
 
 pub struct PersistentStateHook<T: 'static> {
-    inner: StateHook<T>,
+    inner: StateHookInner<T>,
 }
 
 impl<T> PersistentStateHook<T> {
     pub fn new(default: T) -> Self {
         Self {
-            inner: StateHook::new(default),
+            inner: StateHookInner::Default(default),
         }
     }
 }
 
-pub struct PersistentStateBackend<T> {
-    pub(crate) inner: Arc<ArcSwap<StateBackend<T>>>,
-    pub(crate) persisted: Arc<ArcSwap<T>>,
-}
-
 impl<T: SerializableAny> Hook for PersistentStateHook<T> {
-    type Backend = PersistentStateBackend<T>;
+    type Backend = StateBackend<T>;
     type Output = State<T>;
 
     fn init(&mut self, index: usize, ui: &mut egui::Ui) -> Self::Backend {
         let key = ui.id().with(("persistent state", index));
-        let backend = self.inner.init(index, ui);
-        let persisted = ui.data_mut(|data| {
-            data.get_persisted_mut_or_insert_with::<Arc<ArcSwap<T>>>(key, || {
-                Arc::new(ArcSwap::from(backend.load().current.clone()))
+        ui.data_mut(|data| {
+            data.get_persisted_mut_or_insert_with::<StateBackend<T>>(key, || {
+                StateBackend::new(Arc::new(self.inner.take()), None)
             })
             .clone()
-        });
-        PersistentStateBackend {
-            inner: backend,
-            persisted,
-        }
+        })
+        .clone()
     }
 
-    fn hook(self, backend: &mut Self::Backend, ui: &mut egui::Ui) -> Self::Output {
-        let mut state = self.inner.hook(&mut backend.inner, ui);
-        let persisted = backend.persisted.clone();
-        state.subscribe(move |next| {
-            persisted.store(next.clone());
-        });
-        state
+    fn hook(self, backend: &mut Self::Backend, _ui: &mut egui::Ui) -> Self::Output {
+        State::new(backend)
     }
 }
 
@@ -96,9 +81,9 @@ fn use_persisted_value_on_init() {
     let ctx = egui::Context::default();
     let id = egui::Id::new("test");
     ctx.data_mut(|data| {
-        data.insert_persisted::<Arc<ArcSwap<i32>>>(
+        data.insert_persisted::<StateBackend<i32>>(
             id.with(("persistent state", 0)),
-            Arc::new(ArcSwap::from(Arc::new(12345))),
+            StateBackend::new(Arc::new(12345), None),
         );
     });
     egui::containers::Area::new("test").show(&ctx, |ui| {
@@ -106,6 +91,7 @@ fn use_persisted_value_on_init() {
         let mut backend = hook.init(0, ui);
         let state = hook.hook(&mut backend, ui);
         assert_eq!(get_persisted::<i32>(0, ui), 12345);
+        assert_eq!(*state, 12345);
         state.set_next(43);
         assert_eq!(get_persisted::<i32>(0, ui), 43);
     });
@@ -114,11 +100,11 @@ fn use_persisted_value_on_init() {
 #[cfg(test)]
 fn get_persisted<T: SerializableAny>(index: usize, ui: &mut egui::Ui) -> T {
     ui.data_mut(|data| {
-        data.get_persisted::<Arc<ArcSwap<T>>>(ui.id().with(("persistent state", index)))
+        data.get_persisted::<StateBackend<T>>(ui.id().with(("persistent state", index)))
             .unwrap()
     })
-    .as_ref()
     .load()
+    .current
     .as_ref()
     .clone()
 }
