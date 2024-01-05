@@ -1,3 +1,4 @@
+pub mod effect;
 pub mod memo;
 pub mod state;
 
@@ -7,9 +8,9 @@ pub trait Hook {
     type Backend: Clone + Send + Sync + 'static;
     type Output: 'static;
     /// Called when the hook is first called
-    fn init(&mut self) -> Self::Backend;
+    fn init(&mut self, ui: &mut egui::Ui) -> Self::Backend;
     /// Called when the hook is called again
-    fn hook(self, backend: &mut Self::Backend) -> Self::Output;
+    fn hook(self, backend: &mut Self::Backend, ui: &mut egui::Ui) -> Self::Output;
 }
 
 pub trait SerializableHook: Hook

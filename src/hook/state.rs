@@ -14,10 +14,10 @@ where
 {
     type Backend = Arc<ArcSwap<T>>;
     type Output = (Arc<T>, Box<dyn Fn(T)>);
-    fn init(&mut self) -> Self::Backend {
+    fn init(&mut self, _ui: &mut egui::Ui) -> Self::Backend {
         Arc::new(Arc::new(self.default.clone()).into())
     }
-    fn hook(self, backend: &mut Self::Backend) -> Self::Output {
+    fn hook(self, backend: &mut Self::Backend, _ui: &mut egui::Ui) -> Self::Output {
         let backend = backend.clone();
         (
             backend.load().clone(),

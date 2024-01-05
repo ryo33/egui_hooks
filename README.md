@@ -4,12 +4,12 @@ React Hooks like API for egui
 
 ## Status
 
-- [ ] precise memory management (currently, directly uses the `egui::Memory`)
+- [x] precise memory management
 - [x] use_state
 - [ ] use_persistent_state
 - [x] use_memo
 - [ ] use_cache (a thin wrapper of caches in `egui::Memory`)
-- [ ] use_effect
+- [x] use_effect
 - [ ] use_future (needs async runtime)
 
 ## Usage

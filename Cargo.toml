@@ -13,6 +13,7 @@ repository = "https://github.com/ryo33/egui_hooks"
 egui = "0.24"
 arc-swap = "1.6"
 dyn-clone = "1.0"
+once_cell = "1.19"
 
 [dev-dependencies]
 eframe = "0.24"

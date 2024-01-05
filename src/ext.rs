@@ -6,8 +6,9 @@ use std::sync::{
 use egui::util::cache::{ComputerMut, FrameCache};
 
 use crate::{
-    deps::{Deps, DynDeps},
-    hook::{memo::MemoHook, state::StateHook, Hook},
+    deps::Deps,
+    dispatcher::GLOBAL_DISPATCHER,
+    hook::{effect::EffectHook, memo::MemoHook, state::StateHook, Hook},
 };
 
 pub trait UseHookExt {
@@ -22,6 +23,7 @@ pub trait UseHookExt {
         callback: F,
         deps: D,
     ) -> T;
+    fn use_effect<'a, F: FnOnce() + Send + Sync + 'a, D: Deps>(&mut self, callback: F, deps: D);
 }
 
 /// The hook context for this frame in
@@ -53,7 +55,8 @@ struct ExtContext {
 
 impl UseHookExt for egui::Ui {
     fn use_hook<T: Hook, D: Deps>(&mut self, mut hook: T, deps: D) -> T::Output {
-        let id = self.make_persistent_id("egui_hooks_internal");
+        let id = self.id();
+        // Get hook index
         let context_id = HookContextId {
             frame: self.ctx().frame_nr(),
             id,
@@ -64,18 +67,21 @@ impl UseHookExt for egui::Ui {
             context.next_hook_index.fetch_add(1, Ordering::SeqCst)
         });
         let boxed_deps = Box::new(deps);
-        self.data_mut(|data| {
-            let (backend, old_deps) = data
-                .get_temp_mut_or_insert_with::<(T::Backend, Box<dyn DynDeps>)>(
-                    id.with(hook_index),
-                    || (hook.init(), boxed_deps.clone()),
-                );
-            if !old_deps.partial_eq(boxed_deps.as_ref()) {
-                *backend = hook.init();
-                *old_deps = boxed_deps;
-            }
-            hook.hook(backend)
-        })
+        GLOBAL_DISPATCHER.may_advance_frame(self.ctx().frame_nr());
+        let mut backend =
+            if let Some((backend, old_deps)) = GLOBAL_DISPATCHER.get_backend::<T>(id, hook_index) {
+                if old_deps.partial_eq(boxed_deps.as_ref()) {
+                    backend
+                } else {
+                    // The dependencies are changed, so we need to re-initialize the hook
+                    hook.init(self)
+                }
+            } else {
+                hook.init(self)
+            };
+        let output = hook.hook(&mut backend, self);
+        GLOBAL_DISPATCHER.push_backend::<T>(id, backend, boxed_deps);
+        output
     }
 
     fn use_state<T: Clone + Send + Sync + 'static, D: Deps>(
@@ -92,5 +98,9 @@ impl UseHookExt for egui::Ui {
         deps: D,
     ) -> T {
         self.use_hook(MemoHook { callback }, deps)
+    }
+
+    fn use_effect<'a, F: FnOnce() + Send + Sync + 'a, D: Deps>(&mut self, callback: F, deps: D) {
+        self.use_hook(EffectHook { callback }, deps);
     }
 }

@@ -1,4 +1,5 @@
 mod deps;
+mod dispatcher;
 mod ext;
 mod hook;
 
