@@ -9,11 +9,11 @@ use super::{
     Hook,
 };
 
-pub struct PersistentStateHook<T: 'static> {
+pub struct PersistedStateHook<T: 'static> {
     inner: StateHookInner<T>,
 }
 
-impl<T> PersistentStateHook<T> {
+impl<T> PersistedStateHook<T> {
     pub fn new(default: T) -> Self {
         Self {
             inner: StateHookInner::Default(default),
@@ -21,12 +21,12 @@ impl<T> PersistentStateHook<T> {
     }
 }
 
-impl<T: SerializableAny, D: Deps> Hook<D> for PersistentStateHook<T> {
+impl<T: SerializableAny, D: Deps> Hook<D> for PersistedStateHook<T> {
     type Backend = StateBackend<T>;
     type Output = State<T>;
 
     fn init(&mut self, index: usize, _deps: &D, ui: &mut egui::Ui) -> Self::Backend {
-        let key = ui.id().with(("persistent state", index));
+        let key = ui.id().with(("persisted state", index));
         ui.data_mut(|data| {
             data.get_persisted_mut_or_insert_with::<StateBackend<T>>(key, || {
                 StateBackend::new(Arc::new(self.inner.take()), None)
@@ -45,7 +45,7 @@ impl<T: SerializableAny, D: Deps> Hook<D> for PersistentStateHook<T> {
 fn test_saved_on_init() {
     let ctx = egui::Context::default();
     egui::containers::Area::new("test").show(&ctx, |ui| {
-        let mut hook = PersistentStateHook::new(42);
+        let mut hook = PersistedStateHook::new(42);
         hook.init(0, &(), ui);
         assert_eq!(get_persisted::<i32>(0, ui), 42);
     });
@@ -55,7 +55,7 @@ fn test_saved_on_init() {
 fn test_saved_on_set_next() {
     let ctx = egui::Context::default();
     egui::containers::Area::new("test").show(&ctx, |ui| {
-        let mut hook = PersistentStateHook::new(42);
+        let mut hook = PersistedStateHook::new(42);
         let mut backend = hook.init(0, &(), ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
         state.set_next(43);
@@ -67,7 +67,7 @@ fn test_saved_on_set_next() {
 fn no_deadlock() {
     let ctx = egui::Context::default();
     egui::containers::Area::new("test").show(&ctx, |ui| {
-        let mut hook = PersistentStateHook::new(42);
+        let mut hook = PersistedStateHook::new(42);
         let mut backend = hook.init(0, &(), ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
         // try to lock the data in locking data
@@ -84,12 +84,12 @@ fn use_persisted_value_on_init() {
     let id = egui::Id::new("test");
     ctx.data_mut(|data| {
         data.insert_persisted::<StateBackend<i32>>(
-            id.with(("persistent state", 0)),
+            id.with(("persisted state", 0)),
             StateBackend::new(Arc::new(12345), None),
         );
     });
     egui::containers::Area::new("test").show(&ctx, |ui| {
-        let mut hook = PersistentStateHook::new(42);
+        let mut hook = PersistedStateHook::new(42);
         let mut backend = hook.init(0, &(), ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
         assert_eq!(get_persisted::<i32>(0, ui), 12345);
@@ -102,7 +102,7 @@ fn use_persisted_value_on_init() {
 #[cfg(test)]
 fn get_persisted<T: SerializableAny>(index: usize, ui: &mut egui::Ui) -> T {
     ui.data_mut(|data| {
-        data.get_persisted::<StateBackend<T>>(ui.id().with(("persistent state", index)))
+        data.get_persisted::<StateBackend<T>>(ui.id().with(("persisted state", index)))
             .unwrap()
     })
     .load()

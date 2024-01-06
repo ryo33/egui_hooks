@@ -27,5 +27,5 @@ serde = { version = "1.0", features = ["derive"], optional = true }
 eframe = { version = "0.24" }
 
 [[example]]
-name = "use_persistent_state"
+name = "use_persisted_state"
 required-features = ["persistence"]

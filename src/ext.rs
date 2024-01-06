@@ -15,7 +15,7 @@ use crate::{
         cleanup::CleanupHook,
         effect::EffectHook,
         memo::MemoHook,
-        persistent_state::PersistentStateHook,
+        persisted_state::PersistedStateHook,
         state::{State, StateHook},
         Hook,
     },
@@ -29,7 +29,7 @@ pub trait UseHookExt<D: Deps> {
         default: impl FnOnce() -> T,
         deps: D,
     ) -> State<T>;
-    fn use_persistent_state<T: SerializableAny>(&mut self, default: T, deps: D) -> State<T>;
+    fn use_persisted_state<T: SerializableAny>(&mut self, default: T, deps: D) -> State<T>;
     fn use_memo<T: Clone + Send + Sync + 'static, F: FnMut() -> T>(
         &mut self,
         callback: F,
@@ -121,8 +121,8 @@ impl<D: Deps> UseHookExt<D> for egui::Ui {
         self.use_hook(StateHook::new(default), deps)
     }
 
-    fn use_persistent_state<T: SerializableAny>(&mut self, default: T, deps: D) -> State<T> {
-        self.use_hook(PersistentStateHook::new(default), deps)
+    fn use_persisted_state<T: SerializableAny>(&mut self, default: T, deps: D) -> State<T> {
+        self.use_hook(PersistedStateHook::new(default), deps)
     }
 
     fn use_memo<T: Clone + Send + Sync + 'static, F: FnMut() -> T>(

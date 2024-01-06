@@ -6,7 +6,7 @@ React Hooks like API for egui
 
 - [x] precise memory management (double buffered)
 - [x] use_state
-- [x] use_persistent_state
+- [x] use_persisted_state
 - [x] use_memo
 - [ ] use_cache (a thin wrapper of caches in `egui::Memory`)
 - [x] use_effect

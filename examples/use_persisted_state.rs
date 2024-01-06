@@ -3,7 +3,7 @@ use egui_hooks::UseHookExt as _;
 
 fn main() {
     eframe::run_native(
-        "egui_hooks-example-use_persistent_state",
+        "egui_hooks-example-use_persisted_state",
         Default::default(),
         Box::new(|_| Box::new(MyApp)),
     )
@@ -15,7 +15,7 @@ struct MyApp;
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            let count = ui.use_persistent_state(0usize, ());
+            let count = ui.use_persisted_state(0usize, ());
             ui.label(format!("Count: {}", count));
             if ui.button("Increment").clicked() {
                 count.set_next(*count + 1);

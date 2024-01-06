@@ -1,7 +1,7 @@
 pub mod cleanup;
 pub mod effect;
 pub mod memo;
-pub mod persistent_state;
+pub mod persisted_state;
 pub mod state;
 
 pub trait Hook<D> {
