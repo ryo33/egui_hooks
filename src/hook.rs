@@ -1,28 +1,14 @@
+pub mod cleanup;
 pub mod effect;
 pub mod memo;
 pub mod persistent_state;
 pub mod state;
 
-use egui::util::id_type_map::SerializableAny;
-
-pub trait Hook {
+pub trait Hook<D> {
     type Backend: Send + Sync + 'static;
     type Output: 'static;
     /// Called when the hook is first called
-    fn init(&mut self, index: usize, ui: &mut egui::Ui) -> Self::Backend;
+    fn init(&mut self, index: usize, deps: &D, ui: &mut egui::Ui) -> Self::Backend;
     /// Called when the hook is called again
     fn hook(self, backend: &mut Self::Backend, ui: &mut egui::Ui) -> Self::Output;
-}
-
-pub trait SerializableHook: Hook
-where
-    Self::Backend: SerializableAny,
-{
-}
-
-impl<T> SerializableHook for T
-where
-    T: Hook,
-    T::Backend: SerializableAny,
-{
 }

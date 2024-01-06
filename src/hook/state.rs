@@ -1,11 +1,13 @@
-use std::{
-    any::Any,
-    borrow::Borrow,
-    fmt::{Debug, Display, Formatter},
-    sync::Arc,
-};
+mod macros;
+mod var;
+
+pub use var::Var;
+
+use std::{any::Any, sync::Arc};
 
 use arc_swap::ArcSwap;
+
+use crate::deps::Deps;
 
 use super::Hook;
 
@@ -83,13 +85,13 @@ pub struct StateBackendInner<T> {
     pub(crate) previous: Option<Arc<T>>,
 }
 
-impl<T> Hook for StateHook<T>
+impl<T, D: Deps> Hook<D> for StateHook<T>
 where
     T: Any + Send + Sync,
 {
     type Backend = StateBackend<T>;
     type Output = State<T>;
-    fn init(&mut self, _index: usize, _ui: &mut egui::Ui) -> Self::Backend {
+    fn init(&mut self, _index: usize, _deps: &D, _ui: &mut egui::Ui) -> Self::Backend {
         StateBackend::new(Arc::new(self.inner.take()), None)
     }
     fn hook(self, backend: &mut Self::Backend, _ui: &mut egui::Ui) -> Self::Output {
@@ -99,7 +101,8 @@ where
 
 // set_next is a method of this struct instead of returns `(State<T>, impl Fn(impl Fn(T) -> T) -> ())`
 /// The container of current state and previous state returned by `use_state`. Clone is cheap as
-/// `Arc` is used internally.
+/// `Arc` is used internally. If you want to use the state like normal variable without cloning internal value,
+/// you can use `state.into_var()` to get a `VarState` which implements `DerefMut` (but don't forget to call `var.set_next_self()`.
 pub struct State<T> {
     current: Arc<T>,
     previous: Option<Arc<T>>,
@@ -141,24 +144,13 @@ impl<T> State<T> {
     pub fn update_next(&self, f: impl Fn(&T) -> T) {
         self.backend.rcu(f, Some(self.current.clone()));
     }
-}
 
-impl<T> std::ops::Deref for State<T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        self.current.deref()
-    }
-}
-
-impl<T> Borrow<T> for State<T> {
-    fn borrow(&self) -> &T {
-        self.current.borrow()
-    }
-}
-
-impl<T> AsRef<T> for State<T> {
-    fn as_ref(&self) -> &T {
-        self.current.as_ref()
+    /// Get variable-like state. `var.set_next()` is required to update the next state.
+    pub fn into_var(self) -> Var<T>
+    where
+        T: Clone,
+    {
+        self.into()
     }
 }
 
@@ -172,41 +164,14 @@ impl<T> Clone for State<T> {
     }
 }
 
-impl<T: Display> Display for State<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.current.fmt(f)
+impl<T> std::ops::Deref for State<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.current
     }
 }
 
-impl<T: Debug> Debug for State<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.current.fmt(f)
-    }
-}
-
-impl<T: PartialEq> PartialEq for State<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.current.eq(&other.current)
-    }
-}
-
-impl<T: Eq> Eq for State<T> {}
-impl<T: PartialOrd> PartialOrd for State<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.current.partial_cmp(&other.current)
-    }
-}
-impl<T: Ord> Ord for State<T> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.current.cmp(&other.current)
-    }
-}
-
-impl<T: std::hash::Hash> std::hash::Hash for State<T> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.current.hash(state);
-    }
-}
+macros::state_derive!(State);
 
 #[test]
 fn test_not_clonable_state() {
@@ -214,8 +179,8 @@ fn test_not_clonable_state() {
     let ctx = egui::Context::default();
     egui::Area::new("test").show(&ctx, |ui| {
         let mut hook = StateHook::new(NotClonable);
-        let mut backend = hook.init(0, ui);
-        let state = hook.hook(&mut backend, ui);
+        let mut backend = hook.init(0, &(), ui);
+        let state = Hook::<()>::hook(hook, &mut backend, ui);
         let _ = *state;
         let _ = state.previous();
     });
@@ -226,8 +191,8 @@ fn test_default_state() {
     let ctx = egui::Context::default();
     egui::Area::new("test").show(&ctx, |ui| {
         let mut hook = StateHook::new(42);
-        let mut backend = hook.init(0, ui);
-        let state = hook.hook(&mut backend, ui);
+        let mut backend = hook.init(0, &(), ui);
+        let state = Hook::<()>::hook(hook, &mut backend, ui);
         assert_eq!(*state, 42);
         assert_eq!(state.previous(), None);
     });
@@ -238,13 +203,13 @@ fn test_set_new_state() {
     let ctx = egui::Context::default();
     egui::Area::new("test").show(&ctx, |ui| {
         let mut hook = StateHook::new(42);
-        let mut backend = hook.init(0, ui);
-        let state = hook.hook(&mut backend, ui);
+        let mut backend = hook.init(0, &(), ui);
+        let state = Hook::<()>::hook(hook, &mut backend, ui);
         assert_eq!(*state, 42);
         assert_eq!(state.previous(), None);
         state.set_next(43);
         let hook = StateHook::new(42);
-        let state = hook.hook(&mut backend, ui);
+        let state = Hook::<()>::hook(hook, &mut backend, ui);
         assert_eq!(*state, 43);
         assert_eq!(state.previous(), Some(&42));
     });
@@ -255,14 +220,14 @@ fn test_previous_value_with_multiple_set() {
     let ctx = egui::Context::default();
     egui::Area::new("test").show(&ctx, |ui| {
         let mut hook = StateHook::new(42);
-        let mut backend = hook.init(0, ui);
-        let state = hook.hook(&mut backend, ui);
+        let mut backend = hook.init(0, &(), ui);
+        let state = Hook::<()>::hook(hook, &mut backend, ui);
         assert_eq!(*state, 42);
         assert_eq!(state.previous(), None);
         state.set_next(43);
         state.set_next(44);
         let hook = StateHook::new(42);
-        let state = hook.hook(&mut backend, ui);
+        let state = Hook::<()>::hook(hook, &mut backend, ui);
         assert_eq!(*state, 44);
         // not 43
         assert_eq!(state.previous(), Some(&42));
@@ -274,15 +239,15 @@ fn test_update_next() {
     let ctx = egui::Context::default();
     egui::Area::new("test").show(&ctx, |ui| {
         let mut hook = StateHook::new(42);
-        let mut backend = hook.init(0, ui);
-        let state = hook.hook(&mut backend, ui);
+        let mut backend = hook.init(0, &(), ui);
+        let state = Hook::<()>::hook(hook, &mut backend, ui);
 
         state.update_next(|x| x + 1);
         state.update_next(|x| x + 1);
         state.update_next(|x| x + 1);
 
         let hook = StateHook::new(42);
-        let state = hook.hook(&mut backend, ui);
+        let state = Hook::<()>::hook(hook, &mut backend, ui);
         assert_eq!(*state, 45);
         // not 43 or 44
         assert_eq!(state.previous(), Some(&42));
@@ -294,14 +259,14 @@ fn test_update_can_use_value_from_set_next() {
     let ctx = egui::Context::default();
     egui::Area::new("test").show(&ctx, |ui| {
         let mut hook = StateHook::new(42);
-        let mut backend = hook.init(0, ui);
-        let state = hook.hook(&mut backend, ui);
+        let mut backend = hook.init(0, &(), ui);
+        let state = Hook::<()>::hook(hook, &mut backend, ui);
 
         state.set_next(100);
         state.update_next(|x| x + 1);
 
         let hook = StateHook::new(42);
-        let state = hook.hook(&mut backend, ui);
+        let state = Hook::<()>::hook(hook, &mut backend, ui);
         assert_eq!(*state, 101);
         assert_eq!(state.previous(), Some(&42));
     });

@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
+use crate::cleanup::Cleanup;
+
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct TwoFrameMap<K, V> {
+pub struct TwoFrameMap<K, V> {
     frame_nr: u64,
     current: HashMap<K, V>,
     previous: HashMap<K, V>,
-    cleanup: Vec<(K, Box<dyn FnOnce() + Send + Sync + 'static>)>,
+    cleanup: Vec<(K, Box<dyn Cleanup>)>,
 }
 
 impl<K, V> Default for TwoFrameMap<K, V> {
@@ -27,9 +29,9 @@ impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
             self.cleanup = self
                 .cleanup
                 .drain(..)
-                .filter_map(|(key, cleanup)| {
+                .filter_map(|(key, mut cleanup)| {
                     if !self.previous.contains_key(&key) {
-                        cleanup();
+                        cleanup.cleanup();
                         None
                     } else {
                         Some((key, cleanup))
@@ -39,7 +41,7 @@ impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
         }
     }
 
-    pub(crate) fn get(&mut self, key: &K) -> Option<&V> {
+    pub fn get(&mut self, key: &K) -> Option<&V> {
         if !self.current.contains_key(key) {
             if let Some(value) = self.previous.remove(key) {
                 self.current.insert(key.clone(), value);
@@ -48,7 +50,7 @@ impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
         self.current.get(key)
     }
 
-    pub(crate) fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
         if !self.current.contains_key(key) {
             if let Some(value) = self.previous.remove(key) {
                 self.current.insert(key.clone(), value);
@@ -57,7 +59,7 @@ impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
         self.current.get_mut(key)
     }
 
-    pub(crate) fn entry(&mut self, key: K) -> std::collections::hash_map::Entry<K, V> {
+    pub fn entry(&mut self, key: K) -> std::collections::hash_map::Entry<K, V> {
         if !self.current.contains_key(&key) {
             if let Some(value) = self.previous.remove(&key) {
                 self.current.insert(key.clone(), value);
@@ -66,16 +68,16 @@ impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
         self.current.entry(key)
     }
 
-    pub(crate) fn insert(&mut self, key: K, value: V) {
+    pub fn insert(&mut self, key: K, value: V) {
         self.current.insert(key, value);
     }
 
-    pub(crate) fn register_cleanup(
-        &mut self,
-        key: K,
-        cleanup: impl FnOnce() + Send + Sync + 'static,
-    ) {
-        self.cleanup.push((key, Box::new(cleanup)));
+    pub fn register_cleanup(&mut self, key: K, cleanup: impl FnOnce() + Send + Sync + 'static) {
+        self.cleanup.push((key, cleanup.into()));
+    }
+
+    pub(crate) fn register_boxed_cleanup(&mut self, key: K, cleanup: Box<dyn Cleanup>) {
+        self.cleanup.push((key, cleanup));
     }
 }
 
