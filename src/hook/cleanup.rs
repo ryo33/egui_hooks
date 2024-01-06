@@ -8,6 +8,7 @@ pub struct CleanupHook {
 }
 
 impl CleanupHook {
+    #[inline]
     pub fn new(f: impl FnOnce() + Send + Sync + 'static) -> Self {
         Self {
             f: Some(Box::new(f)),
@@ -18,11 +19,13 @@ impl CleanupHook {
 impl<D: Deps> Hook<D> for CleanupHook {
     type Backend = ();
     type Output = ();
+    #[inline]
     fn init(&mut self, _hook_index: usize, _deps: &D, ui: &mut egui::Ui) -> Self::Backend {
         let id = ui.id();
         let dispatcher = Dispatcher::from_ui(ui);
         dispatcher.register_cleanup(id, self.f.take().unwrap().into());
     }
+    #[inline]
     fn hook(self, _backend: &mut Self::Backend, _ui: &mut egui::Ui) -> Self::Output {}
 }
 

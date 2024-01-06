@@ -28,6 +28,7 @@ struct Backend {
 }
 
 impl Dispatcher {
+    #[inline]
     pub(crate) fn from_ui(ui: &egui::Ui) -> Arc<Self> {
         ui.data_mut(|data| {
             data.get_temp_mut_or_default::<Arc<Dispatcher>>(egui::Id::NULL)
@@ -35,10 +36,12 @@ impl Dispatcher {
         })
     }
 
+    #[inline]
     pub(crate) fn may_advance_frame(&self, frame_nr: u64) {
         self.inner.write().may_advance_frame(frame_nr);
     }
 
+    #[inline]
     pub(crate) fn get_backend<T: Hook<D>, D>(
         &self,
         id: egui::Id,
@@ -66,6 +69,7 @@ impl Dispatcher {
         None
     }
 
+    #[inline]
     pub(crate) fn push_backend<T: Hook<D>, D>(
         &self,
         id: egui::Id,
@@ -83,6 +87,7 @@ impl Dispatcher {
         );
     }
 
+    #[inline]
     pub(crate) fn register_cleanup(&self, id: egui::Id, cleanup: Box<dyn Cleanup>) {
         self.inner.write().register_boxed_cleanup(id, cleanup)
     }

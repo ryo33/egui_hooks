@@ -11,6 +11,7 @@ pub struct TwoFrameMap<K, V> {
 }
 
 impl<K, V> Default for TwoFrameMap<K, V> {
+    #[inline]
     fn default() -> Self {
         Self {
             frame_nr: 0,
@@ -22,6 +23,7 @@ impl<K, V> Default for TwoFrameMap<K, V> {
 }
 
 impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
+    #[inline]
     pub(crate) fn may_advance_frame(&mut self, frame_nr: u64) {
         if frame_nr != self.frame_nr {
             self.frame_nr = frame_nr;
@@ -41,6 +43,7 @@ impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
         }
     }
 
+    #[inline]
     pub fn get(&mut self, key: &K) -> Option<&V> {
         if !self.current.contains_key(key) {
             if let Some(value) = self.previous.remove(key) {
@@ -50,6 +53,7 @@ impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
         self.current.get(key)
     }
 
+    #[inline]
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
         if !self.current.contains_key(key) {
             if let Some(value) = self.previous.remove(key) {
@@ -59,6 +63,7 @@ impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
         self.current.get_mut(key)
     }
 
+    #[inline]
     pub fn entry(&mut self, key: K) -> std::collections::hash_map::Entry<K, V> {
         if !self.current.contains_key(&key) {
             if let Some(value) = self.previous.remove(&key) {
@@ -68,14 +73,17 @@ impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
         self.current.entry(key)
     }
 
+    #[inline]
     pub fn insert(&mut self, key: K, value: V) {
         self.current.insert(key, value);
     }
 
+    #[inline]
     pub fn register_cleanup(&mut self, key: K, cleanup: impl FnOnce() + Send + Sync + 'static) {
         self.cleanup.push((key, cleanup.into()));
     }
 
+    #[inline]
     pub(crate) fn register_boxed_cleanup(&mut self, key: K, cleanup: Box<dyn Cleanup>) {
         self.cleanup.push((key, cleanup));
     }

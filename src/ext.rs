@@ -67,6 +67,7 @@ struct ExtContext {
 }
 
 impl<D: Deps> UseHookExt<D> for egui::Ui {
+    #[inline]
     fn use_hook_as<T: Hook<D>>(&mut self, id: egui::Id, mut hook: T, deps: D) -> T::Output {
         // Get hook index
         let context_id = HookContextId {
@@ -95,6 +96,8 @@ impl<D: Deps> UseHookExt<D> for egui::Ui {
         dispatcher.push_backend::<T, D>(id, hook_index, backend, deps);
         output
     }
+
+    #[inline]
     fn use_hook<T: Hook<D>>(&mut self, hook: T, deps: D) -> T::Output {
         let id = self.id();
         self.use_hook_as(id, hook, deps)
@@ -113,6 +116,7 @@ impl<D: Deps> UseHookExt<D> for egui::Ui {
     ///     let mut var_state = ui.use_state(42, ()).into_var();
     /// });
     /// ```
+    #[inline]
     fn use_state<T: Clone + Send + Sync + 'static>(
         &mut self,
         default: impl FnOnce() -> T,
@@ -121,10 +125,12 @@ impl<D: Deps> UseHookExt<D> for egui::Ui {
         self.use_hook(StateHook::new(default), deps)
     }
 
+    #[inline]
     fn use_persisted_state<T: SerializableAny>(&mut self, default: T, deps: D) -> State<T> {
         self.use_hook(PersistedStateHook::new(default), deps)
     }
 
+    #[inline]
     fn use_memo<T: Clone + Send + Sync + 'static, F: FnMut() -> T>(
         &mut self,
         callback: F,
@@ -133,10 +139,12 @@ impl<D: Deps> UseHookExt<D> for egui::Ui {
         self.use_hook(MemoHook { callback }, deps)
     }
 
+    #[inline]
     fn use_effect<F: FnOnce() + Send + Sync>(&mut self, callback: F, deps: D) {
         self.use_hook(EffectHook { callback }, deps);
     }
 
+    #[inline]
     fn use_cleanup<F: FnOnce() + Send + Sync + 'static>(&mut self, callback: F, deps: D) {
         self.use_hook(CleanupHook::new(callback), deps)
     }

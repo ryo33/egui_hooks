@@ -14,6 +14,7 @@ pub struct PersistedStateHook<T: 'static> {
 }
 
 impl<T> PersistedStateHook<T> {
+    #[inline]
     pub fn new(default: T) -> Self {
         Self {
             inner: StateHookInner::Default(default),
@@ -25,6 +26,7 @@ impl<T: SerializableAny, D: Deps> Hook<D> for PersistedStateHook<T> {
     type Backend = StateBackend<T>;
     type Output = State<T>;
 
+    #[inline]
     fn init(&mut self, index: usize, _deps: &D, ui: &mut egui::Ui) -> Self::Backend {
         let key = ui.id().with(("persisted state", index));
         ui.data_mut(|data| {
@@ -36,6 +38,7 @@ impl<T: SerializableAny, D: Deps> Hook<D> for PersistedStateHook<T> {
         .clone()
     }
 
+    #[inline]
     fn hook(self, backend: &mut Self::Backend, _ui: &mut egui::Ui) -> Self::Output {
         State::new(backend)
     }

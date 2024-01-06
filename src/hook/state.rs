@@ -16,6 +16,7 @@ pub struct StateHook<F> {
 }
 
 impl<T, F: FnOnce() -> T> StateHook<F> {
+    #[inline]
     pub fn new(default: F) -> Self {
         Self {
             inner: StateHookInner::Default(default),
@@ -29,6 +30,7 @@ pub(crate) enum StateHookInner<T> {
 }
 
 impl<F> StateHookInner<F> {
+    #[inline]
     pub fn take(&mut self) -> F {
         match std::mem::replace(self, StateHookInner::Taken) {
             StateHookInner::Default(default) => default,
@@ -43,6 +45,7 @@ pub struct StateBackend<T> {
 }
 
 impl<T> StateBackend<T> {
+    #[inline]
     pub(crate) fn new(current: Arc<T>, previous: Option<Arc<T>>) -> Self {
         Self {
             inner: Arc::new(ArcSwap::from(Arc::new(StateBackendInner {
@@ -52,15 +55,18 @@ impl<T> StateBackend<T> {
         }
     }
 
+    #[inline]
     pub(crate) fn load(&self) -> impl std::ops::Deref<Target = Arc<StateBackendInner<T>>> {
         self.inner.load()
     }
 
+    #[inline]
     pub(crate) fn store(&self, current: Arc<T>, previous: Option<Arc<T>>) {
         self.inner
             .store(Arc::new(StateBackendInner { current, previous }));
     }
 
+    #[inline]
     pub(crate) fn rcu(&self, f: impl Fn(&T) -> T, previous: Option<Arc<T>>) {
         self.inner.rcu(move |inner| {
             Arc::new(StateBackendInner {
@@ -72,6 +78,7 @@ impl<T> StateBackend<T> {
 }
 
 impl<T> Clone for StateBackend<T> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
@@ -91,9 +98,11 @@ where
 {
     type Backend = StateBackend<T>;
     type Output = State<T>;
+    #[inline]
     fn init(&mut self, _index: usize, _deps: &D, _ui: &mut egui::Ui) -> Self::Backend {
         StateBackend::new(Arc::new(self.inner.take()()), None)
     }
+    #[inline]
     fn hook(self, backend: &mut Self::Backend, _ui: &mut egui::Ui) -> Self::Output {
         State::new(backend)
     }
@@ -116,6 +125,7 @@ fn test_state_is_send_sync() {
 }
 
 impl<T> State<T> {
+    #[inline]
     pub(crate) fn new(backend: &mut StateBackend<T>) -> Self {
         let guard = backend.load();
         Self {
@@ -129,11 +139,13 @@ impl<T> State<T> {
     /// Even if set_state is called multiple times in a frame, this returns the value at the
     /// previous `use_state`. This helps to do some cleanup depending on the previous state in
     /// `use_effect`.
+    #[inline]
     pub fn previous(&self) -> Option<&T> {
         self.previous.as_deref()
     }
 
     /// Set the next value of the state that will be used in the next frame.
+    #[inline]
     pub fn set_next(&self, next: T) {
         self.backend
             .store(Arc::new(next), Some(self.current.clone()));
@@ -141,11 +153,13 @@ impl<T> State<T> {
 
     /// Set the next value of the state with a function that takes the current state or the next
     /// state if already set in the current frame with `set_next` or `update_next`.
+    #[inline]
     pub fn update_next(&self, f: impl Fn(&T) -> T) {
         self.backend.rcu(f, Some(self.current.clone()));
     }
 
     /// Get variable-like state. `var.set_next()` is required to update the next state.
+    #[inline]
     pub fn into_var(self) -> Var<T>
     where
         T: Clone,
@@ -155,6 +169,7 @@ impl<T> State<T> {
 }
 
 impl<T> Clone for State<T> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             current: self.current.clone(),
@@ -166,6 +181,7 @@ impl<T> Clone for State<T> {
 
 impl<T> std::ops::Deref for State<T> {
     type Target = T;
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.current
     }
