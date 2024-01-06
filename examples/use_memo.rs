@@ -10,7 +10,7 @@ struct MyApp;
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            let count = ui.use_state(0usize, ());
+            let count = ui.use_state(|| 0usize, ());
             let memo = ui.use_memo(
                 || {
                     println!("Calculating memoized value");

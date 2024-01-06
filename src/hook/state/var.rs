@@ -58,7 +58,7 @@ fn test_drop() {
     let ctx = egui::Context::default();
     egui::Area::new("test").show(&ctx, |ui| {
         use crate::UseHookExt as _;
-        let mut var = ui.use_state(42, ()).into_var();
+        let mut var = ui.use_state(|| 42, ()).into_var();
         let state = var.state();
         *var = 43;
         assert_eq!(*state.backend.load().current, 42);

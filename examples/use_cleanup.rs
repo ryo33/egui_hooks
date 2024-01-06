@@ -10,8 +10,8 @@ struct MyApp;
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            let mut name = ui.use_state(String::default(), ()).into_var();
-            let windows = ui.use_state::<Vec<String>>(Default::default(), ());
+            let mut name = ui.use_state(String::default, ()).into_var();
+            let windows = ui.use_state::<Vec<String>>(Default::default, ());
             ui.text_edit_singleline(&mut *name);
             if ui.button("Create a window").clicked() {
                 let mut next_windows = windows.as_ref().clone();
@@ -20,7 +20,7 @@ impl eframe::App for MyApp {
             }
             for window in windows.as_ref() {
                 let mut open = ui
-                    .use_hook_as(egui::Id::new(window), StateHook::new(true), ())
+                    .use_hook_as(egui::Id::new(window), StateHook::new(|| true), ())
                     .into_var();
                 egui::Window::new(window)
                     .open(&mut open)

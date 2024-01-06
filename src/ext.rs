@@ -24,7 +24,11 @@ use crate::{
 pub trait UseHookExt<D: Deps> {
     fn use_hook_as<T: Hook<D>>(&mut self, id: egui::Id, hook: T, deps: D) -> T::Output;
     fn use_hook<T: Hook<D>>(&mut self, hook: T, deps: D) -> T::Output;
-    fn use_state<T: Clone + Send + Sync + 'static>(&mut self, default: T, deps: D) -> State<T>;
+    fn use_state<T: Clone + Send + Sync + 'static>(
+        &mut self,
+        default: impl FnOnce() -> T,
+        deps: D,
+    ) -> State<T>;
     fn use_persistent_state<T: SerializableAny>(&mut self, default: T, deps: D) -> State<T>;
     fn use_memo<T: Clone + Send + Sync + 'static, F: FnMut() -> T>(
         &mut self,
@@ -109,7 +113,11 @@ impl<D: Deps> UseHookExt<D> for egui::Ui {
     ///     let mut var_state = ui.use_state(42, ()).into_var();
     /// });
     /// ```
-    fn use_state<T: Clone + Send + Sync + 'static>(&mut self, default: T, deps: D) -> State<T> {
+    fn use_state<T: Clone + Send + Sync + 'static>(
+        &mut self,
+        default: impl FnOnce() -> T,
+        deps: D,
+    ) -> State<T> {
         self.use_hook(StateHook::new(default), deps)
     }
 
