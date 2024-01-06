@@ -1,8 +1,11 @@
 pub mod cleanup;
 pub mod effect;
+pub mod global_state;
+pub mod kv;
 pub mod memo;
 pub mod persisted_state;
 pub mod state;
+pub mod two_frame_kv;
 
 pub trait Hook<D> {
     type Backend: Send + Sync + 'static;

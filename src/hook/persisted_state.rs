@@ -30,6 +30,7 @@ impl<T: SerializableAny, D: Deps> Hook<D> for PersistedStateHook<T> {
     fn init(&mut self, index: usize, _deps: &D, ui: &mut egui::Ui) -> Self::Backend {
         let key = ui.id().with(("persisted state", index));
         ui.data_mut(|data| {
+            // TODO: use TwoFrameMap instead of directly using IdTypeMap
             data.get_persisted_mut_or_insert_with::<StateBackend<T>>(key, || {
                 StateBackend::new(Arc::new(self.inner.take()), None)
             })

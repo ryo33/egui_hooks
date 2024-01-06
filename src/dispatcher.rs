@@ -10,10 +10,23 @@ use crate::{cleanup::Cleanup, deps::BoxedDeps, hook::Hook, two_frame_map::TwoFra
 
 #[derive(Default)]
 pub struct Dispatcher {
-    // Option<Backend> is used to allow `Option::take` to get owned value from vec without changing
-    // the length of the vec or cloning the value.
+    /// Option<Backend> is used to allow `Option::take` to get owned value from vec without changing
+    /// the length of the vec or cloning the value.
     inner: RwLock<TwoFrameMap<egui::Id, BTreeMap<usize, Backend>>>,
+    /// kv store for two-frame kvs.
+    two_frame_kvs: RwLock<KvStore>,
+    /// kv store for two-frame kvs that are persisted.
+    persisted_two_frame_kvs: RwLock<KvStore>,
+    /// kv store for normal kvs.
+    kvs: RwLock<KvStore>,
+    /// kv store for normal kvs that are persisted.
+    persisted_kvs: RwLock<KvStore>,
+    /// kv store for ephemeral kvs.
+    ephemeral_kvs: RwLock<KvStore>,
 }
+
+// ahash is ok because type is provided at compile time not runtime (not malicious).
+type KvStore = egui::ahash::HashMap<(TypeId, TypeId), Arc<RwLock<Box<dyn Any + Send + Sync>>>>;
 
 #[test]
 fn dispatcher_is_send_and_sync() {
