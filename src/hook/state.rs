@@ -128,6 +128,13 @@ where
 pub struct State<T> {
     current: Arc<T>,
     previous: Option<Arc<T>>,
+    set_state: SetState<T>,
+}
+
+pub struct SetState<T> {
+    _phantom: std::marker::PhantomData<T>,
+    // This field is required to save the previous value of the state.
+    current: Arc<T>,
     backend: StateBackend<T>,
 }
 
@@ -135,6 +142,32 @@ pub struct State<T> {
 fn test_state_is_send_sync() {
     fn assert_send<T: Send + Sync>() {}
     assert_send::<State<i32>>();
+    assert_send::<SetState<i32>>();
+}
+
+impl<T> SetState<T> {
+    #[inline]
+    pub(crate) fn new(current: Arc<T>, backend: StateBackend<T>) -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+            current,
+            backend,
+        }
+    }
+
+    /// Set the next value of the state that will be used in the next frame.
+    #[inline]
+    pub fn set_next(&self, next: T) {
+        self.backend
+            .store(Arc::new(next), Some(self.current.clone()));
+    }
+
+    /// Set the next value of the state with a function that takes the current state or the next
+    /// state if already set in the current frame with `set_next` or `update_next`.
+    #[inline]
+    pub fn update_next(&self, f: impl Fn(&T) -> T) {
+        self.backend.rcu(f, Some(self.current.clone()));
+    }
 }
 
 impl<T> State<T> {
@@ -144,7 +177,7 @@ impl<T> State<T> {
         Self {
             current: guard.current.clone(),
             previous: guard.previous.clone(),
-            backend: backend.clone(),
+            set_state: SetState::new(guard.current.clone(), backend.clone()),
         }
     }
 
@@ -160,15 +193,14 @@ impl<T> State<T> {
     /// Set the next value of the state that will be used in the next frame.
     #[inline]
     pub fn set_next(&self, next: T) {
-        self.backend
-            .store(Arc::new(next), Some(self.current.clone()));
+        self.set_state.set_next(next);
     }
 
     /// Set the next value of the state with a function that takes the current state or the next
     /// state if already set in the current frame with `set_next` or `update_next`.
     #[inline]
     pub fn update_next(&self, f: impl Fn(&T) -> T) {
-        self.backend.rcu(f, Some(self.current.clone()));
+        self.set_state.update_next(f);
     }
 
     /// Get variable-like state. `var.set_next()` is required to update the next state.
@@ -187,6 +219,17 @@ impl<T> Clone for State<T> {
         Self {
             current: self.current.clone(),
             previous: self.previous.clone(),
+            set_state: self.set_state.clone(),
+        }
+    }
+}
+
+impl<T> Clone for SetState<T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+            current: self.current.clone(),
             backend: self.backend.clone(),
         }
     }

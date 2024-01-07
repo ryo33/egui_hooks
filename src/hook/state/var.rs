@@ -67,8 +67,8 @@ fn test_drop() {
         let mut var = ui.use_state(|| 42, ()).into_var();
         let state = var.state();
         *var = 43;
-        assert_eq!(*state.backend.load().current, 42);
+        assert_eq!(*state.set_state.backend.load().current, 42);
         drop(var);
-        assert_eq!(*state.backend.load().current, 43);
+        assert_eq!(*state.set_state.backend.load().current, 43);
     });
 }
