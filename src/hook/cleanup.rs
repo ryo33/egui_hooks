@@ -20,7 +20,13 @@ impl<D: Deps> Hook<D> for CleanupHook {
     type Backend = ();
     type Output = ();
     #[inline]
-    fn init(&mut self, _hook_index: usize, _deps: &D, ui: &mut egui::Ui) -> Self::Backend {
+    fn init(
+        &mut self,
+        _hook_index: usize,
+        _deps: &D,
+        _backend: Option<Self::Backend>,
+        ui: &mut egui::Ui,
+    ) -> Self::Backend {
         let id = ui.id();
         let dispatcher = Dispatcher::from_ui(ui);
         dispatcher.register_cleanup(id, self.f.take().unwrap().into());

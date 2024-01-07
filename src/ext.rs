@@ -29,7 +29,11 @@ pub trait UseHookExt<D: Deps> {
         default: impl FnOnce() -> T,
         deps: D,
     ) -> State<T>;
-    fn use_persisted_state<T: SerializableAny>(&mut self, default: T, deps: D) -> State<T>;
+    fn use_persisted_state<T: SerializableAny>(
+        &mut self,
+        default: impl FnOnce() -> T,
+        deps: D,
+    ) -> State<T>;
     fn use_memo<T: Clone + Send + Sync + 'static, F: FnMut() -> T>(
         &mut self,
         callback: F,
@@ -87,10 +91,16 @@ impl<D: Deps> UseHookExt<D> for egui::Ui {
                     (backend, old_deps)
                 } else {
                     // The dependencies are changed, so we need to re-initialize the hook
-                    (hook.init(hook_index, &deps, self), Box::new(deps) as _)
+                    (
+                        hook.init(hook_index, &deps, Some(backend), self),
+                        Box::new(deps) as _,
+                    )
                 }
             } else {
-                (hook.init(hook_index, &deps, self), Box::new(deps) as _)
+                (
+                    hook.init(hook_index, &deps, None, self),
+                    Box::new(deps) as _,
+                )
             };
         let output = hook.hook(&mut backend, self);
         dispatcher.push_backend::<T, D>(id, hook_index, backend, deps);
@@ -112,8 +122,8 @@ impl<D: Deps> UseHookExt<D> for egui::Ui {
     /// let ctx = egui::Context::default();
     /// egui::Area::new("test").show(&ctx, |ui| {
     ///     use egui_hooks::UseHookExt as _;
-    ///     let mut state = ui.use_state(42, ());
-    ///     let mut var_state = ui.use_state(42, ()).into_var();
+    ///     let mut state = ui.use_state(|| 42, ());
+    ///     let mut var_state = ui.use_state(|| 42, ()).into_var();
     /// });
     /// ```
     #[inline]
@@ -126,7 +136,11 @@ impl<D: Deps> UseHookExt<D> for egui::Ui {
     }
 
     #[inline]
-    fn use_persisted_state<T: SerializableAny>(&mut self, default: T, deps: D) -> State<T> {
+    fn use_persisted_state<T: SerializableAny>(
+        &mut self,
+        default: impl FnOnce() -> T,
+        deps: D,
+    ) -> State<T> {
         self.use_hook(PersistedStateHook::new(default), deps)
     }
 

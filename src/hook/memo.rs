@@ -8,7 +8,13 @@ impl<T: Clone + Send + Sync + 'static, F: FnMut() -> T, D> Hook<D> for MemoHook<
     type Backend = T;
     type Output = T;
     #[inline]
-    fn init(&mut self, _index: usize, _deps: &D, _ui: &mut egui::Ui) -> Self::Backend {
+    fn init(
+        &mut self,
+        _index: usize,
+        _deps: &D,
+        _backend: Option<Self::Backend>,
+        _ui: &mut egui::Ui,
+    ) -> Self::Backend {
         (self.callback)()
     }
     #[inline]
