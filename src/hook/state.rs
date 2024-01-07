@@ -86,7 +86,7 @@ impl<T> Clone for StateBackend<T> {
     }
 }
 
-#[cfg_attr(feature = "persistence", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StateBackendInner<T> {
     pub(crate) current: Arc<T>,
     pub(crate) previous: Option<Arc<T>>,

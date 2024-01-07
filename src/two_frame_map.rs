@@ -3,43 +3,70 @@ use std::collections::HashMap;
 use crate::cleanup::Cleanup;
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct TwoFrameMap<K, V> {
+pub struct TwoFrameMap<K: Eq + std::hash::Hash, V> {
+    #[cfg_attr(feature = "serde", serde(skip))]
     frame_nr: u64,
     current: HashMap<K, V>,
     previous: HashMap<K, V>,
-    cleanup: Vec<(K, Box<dyn Cleanup>)>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(default = "Default::default"))]
+    cleanup: Cleanups<K>,
 }
 
-impl<K, V> Default for TwoFrameMap<K, V> {
+pub struct Cleanups<K> {
+    vec: Vec<(K, Box<dyn Cleanup>)>,
+}
+
+impl<K> Default for Cleanups<K> {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            vec: Vec::default(),
+        }
+    }
+}
+
+impl<K: Eq + std::hash::Hash, V> Default for TwoFrameMap<K, V> {
     #[inline]
     fn default() -> Self {
         Self {
             frame_nr: 0,
             current: HashMap::default(),
             previous: HashMap::default(),
-            cleanup: Vec::default(),
+            cleanup: Default::default(),
         }
     }
 }
 
+/// This is a map like the normal HashMap, but it automatically clears entries not used in the
+/// previous frame.
+/// `TwoFrameMap` stands for you can get a value that used in the two frames, current and previous.
+/// `K: Clone` is required because the key is cloned when
 impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     #[inline]
     pub(crate) fn may_advance_frame(&mut self, frame_nr: u64) {
         if frame_nr != self.frame_nr {
             self.frame_nr = frame_nr;
             self.previous = std::mem::take(&mut self.current);
-            self.cleanup = self
-                .cleanup
-                .drain(..)
-                .filter_map(|(key, mut cleanup)| {
-                    if !self.previous.contains_key(&key) {
-                        cleanup.cleanup();
-                        None
-                    } else {
-                        Some((key, cleanup))
-                    }
-                })
-                .collect();
+            self.cleanup = Cleanups {
+                vec: self
+                    .cleanup
+                    .vec
+                    .drain(..)
+                    .filter_map(|(key, mut cleanup)| {
+                        if !self.previous.contains_key(&key) {
+                            cleanup.cleanup();
+                            None
+                        } else {
+                            Some((key, cleanup))
+                        }
+                    })
+                    .collect(),
+            };
         }
     }
 
@@ -80,12 +107,12 @@ impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
 
     #[inline]
     pub fn register_cleanup(&mut self, key: K, cleanup: impl FnOnce() + Send + Sync + 'static) {
-        self.cleanup.push((key, cleanup.into()));
+        self.cleanup.vec.push((key, cleanup.into()));
     }
 
     #[inline]
     pub(crate) fn register_boxed_cleanup(&mut self, key: K, cleanup: Box<dyn Cleanup>) {
-        self.cleanup.push((key, cleanup));
+        self.cleanup.vec.push((key, cleanup));
     }
 }
 

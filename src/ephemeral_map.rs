@@ -1,10 +1,10 @@
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct EphemeralMap<K, V> {
+pub struct EphemeralMap<K: Eq + std::hash::Hash, V> {
     frame_nr: u64,
     map: std::collections::HashMap<K, V>,
 }
 
-impl<K, V> Default for EphemeralMap<K, V> {
+impl<K: Eq + std::hash::Hash, V> Default for EphemeralMap<K, V> {
     #[inline]
     fn default() -> Self {
         Self {
@@ -14,7 +14,12 @@ impl<K, V> Default for EphemeralMap<K, V> {
     }
 }
 
-impl<K: Eq + std::hash::Hash + Clone, V> EphemeralMap<K, V> {
+impl<K: Eq + std::hash::Hash, V> EphemeralMap<K, V> {
+    #[inline]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     #[inline]
     pub(crate) fn may_advance_frame(&mut self, frame_nr: u64) {
         if frame_nr != self.frame_nr {

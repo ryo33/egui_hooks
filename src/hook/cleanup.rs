@@ -37,30 +37,36 @@ impl<D: Deps> Hook<D> for CleanupHook {
 
 #[test]
 fn cleanup() {
+    use crate::UseHookExt;
     let ctx = egui::Context::default();
-    egui::Area::new("test").show(&ctx, |ui| {
-        let dispatcher = Dispatcher::from_ui(ui);
+    let called = std::sync::Arc::new(egui::mutex::Mutex::new(Vec::new()));
 
-        let called = std::sync::Arc::new(egui::mutex::Mutex::new(Vec::new()));
-        let cloned = called.clone();
-        use crate::UseHookExt;
-        ui.use_cleanup(
-            move || {
-                cloned.lock().push(());
-            },
-            (),
-        );
+    let _ = ctx.run(Default::default(), |ctx| {
+        egui::Area::new("test").show(ctx, |ui| {
+            let cloned = called.clone();
+            ui.use_cleanup(move || cloned.lock().push(()), ());
+        });
 
         // not called yet since this is the first frame
         assert_eq!(called.lock().len(), 0);
+    });
 
-        ui.ctx().begin_frame(Default::default());
-        dispatcher.may_advance_frame(100);
+    let _ = ctx.run(Default::default(), |ctx| {
+        // ensure the advance of frame
+        egui::Area::new("test2").show(ctx, |ui| {
+            ui.use_state(|| 0u32, ());
+        });
+
         // not called yet since this is the second frame
         assert_eq!(called.lock().len(), 0);
+    });
 
-        ui.ctx().begin_frame(Default::default());
-        dispatcher.may_advance_frame(101);
+    let _ = ctx.run(Default::default(), |ctx| {
+        // ensure the advance of frame
+        egui::Area::new("test2").show(ctx, |ui| {
+            ui.use_state(|| 0u32, ());
+        });
+
         // called since this is the third frame
         assert_eq!(called.lock().len(), 1);
     });

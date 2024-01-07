@@ -1,10 +1,11 @@
 use std::{
     any::{Any, TypeId},
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     sync::Arc,
 };
 
-use egui::mutex::RwLock;
+use egui::util::id_type_map::SerializableAny;
+use parking_lot::RwLock;
 
 use crate::{cleanup::Cleanup, deps::BoxedDeps, hook::Hook, two_frame_map::TwoFrameMap};
 
@@ -12,21 +13,15 @@ use crate::{cleanup::Cleanup, deps::BoxedDeps, hook::Hook, two_frame_map::TwoFra
 pub struct Dispatcher {
     /// Option<Backend> is used to allow `Option::take` to get owned value from vec without changing
     /// the length of the vec or cloning the value.
-    inner: RwLock<TwoFrameMap<egui::Id, BTreeMap<usize, Backend>>>,
-    /// kv store for two-frame kvs.
-    two_frame_kvs: RwLock<KvStore>,
-    /// kv store for two-frame kvs that are persisted.
-    persisted_two_frame_kvs: RwLock<KvStore>,
+    backends: RwLock<TwoFrameMap<egui::Id, BTreeMap<usize, Backend>>>,
     /// kv store for normal kvs.
     kvs: RwLock<KvStore>,
     /// kv store for normal kvs that are persisted.
     persisted_kvs: RwLock<KvStore>,
-    /// kv store for ephemeral kvs.
-    ephemeral_kvs: RwLock<KvStore>,
 }
 
 // ahash is ok because type is provided at compile time not runtime (not malicious).
-type KvStore = egui::ahash::HashMap<(TypeId, TypeId), Arc<RwLock<Box<dyn Any + Send + Sync>>>>;
+type KvStore = egui::ahash::HashMap<(TypeId, TypeId), Box<dyn Any + Send + Sync>>;
 
 #[test]
 fn dispatcher_is_send_and_sync() {
@@ -51,7 +46,7 @@ impl Dispatcher {
 
     #[inline]
     pub(crate) fn may_advance_frame(&self, frame_nr: u64) {
-        self.inner.write().may_advance_frame(frame_nr);
+        self.backends.write().may_advance_frame(frame_nr);
     }
 
     #[inline]
@@ -61,7 +56,7 @@ impl Dispatcher {
         index: usize,
     ) -> Option<(T::Backend, BoxedDeps)> {
         let backend = self
-            .inner
+            .backends
             .write()
             .get_mut(&id)
             .and_then(|backends| backends.remove(&index));
@@ -90,7 +85,7 @@ impl Dispatcher {
         backend: T::Backend,
         deps: BoxedDeps,
     ) {
-        self.inner.write().entry(id).or_default().insert(
+        self.backends.write().entry(id).or_default().insert(
             index,
             Backend {
                 type_id: TypeId::of::<T::Backend>(),
@@ -102,6 +97,47 @@ impl Dispatcher {
 
     #[inline]
     pub(crate) fn register_cleanup(&self, id: egui::Id, cleanup: Box<dyn Cleanup>) {
-        self.inner.write().register_boxed_cleanup(id, cleanup)
+        self.backends.write().register_boxed_cleanup(id, cleanup)
+    }
+
+    #[inline]
+    pub(crate) fn get_kv_or_default<K: Send + Sync + 'static, V: Send + Sync + 'static>(
+        &self,
+    ) -> Arc<RwLock<HashMap<K, V>>> {
+        self.kvs
+            .write()
+            .entry((TypeId::of::<K>(), TypeId::of::<V>()))
+            .or_insert_with(|| Box::new(Arc::new(RwLock::new(HashMap::<K, V>::default()))))
+            .downcast_ref::<Arc<RwLock<HashMap<K, V>>>>()
+            .unwrap()
+            .clone()
+    }
+
+    #[inline]
+    pub(crate) fn get_persisted_kv_or_default<
+        K: SerializableAny + Eq + std::hash::Hash,
+        V: SerializableAny,
+    >(
+        &self,
+        ui: &mut egui::Ui,
+    ) -> Arc<RwLock<HashMap<K, V>>> {
+        self.persisted_kvs
+            .write()
+            .entry((TypeId::of::<K>(), TypeId::of::<V>()))
+            .or_insert_with(|| {
+                // Clone from egui data
+                ui.data_mut(|data| {
+                    Box::new(
+                        data.get_persisted_mut_or_insert_with::<Arc<RwLock<HashMap<K, V>>>>(
+                            egui::Id::new((TypeId::of::<K>(), TypeId::of::<V>())),
+                            || Arc::new(RwLock::new(HashMap::<K, V>::default())),
+                        )
+                        .clone(),
+                    )
+                })
+            })
+            .downcast_ref::<Arc<RwLock<HashMap<K, V>>>>()
+            .unwrap()
+            .clone()
     }
 }

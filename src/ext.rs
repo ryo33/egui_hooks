@@ -14,33 +14,52 @@ use crate::{
     hook::{
         cleanup::CleanupHook,
         effect::EffectHook,
+        ephemeral_kv::{EphemeralKv, EphemeralKvHook},
+        kv::{Kv, KvHook, PersistedKvHook},
         memo::MemoHook,
         persisted_state::PersistedStateHook,
         state::{State, StateHook},
+        two_frame_kv::{PersistedTwoFrameKvHook, TwoFrameKv, TwoFrameKvHook},
         Hook,
     },
 };
 
-pub trait UseHookExt<D: Deps> {
-    fn use_hook_as<T: Hook<D>>(&mut self, id: egui::Id, hook: T, deps: D) -> T::Output;
-    fn use_hook<T: Hook<D>>(&mut self, hook: T, deps: D) -> T::Output;
-    fn use_state<T: Clone + Send + Sync + 'static>(
+pub trait UseHookExt {
+    fn use_hook_as<T: Hook<D>, D: Deps>(&mut self, id: egui::Id, hook: T, deps: D) -> T::Output;
+    fn use_hook<T: Hook<D>, D: Deps>(&mut self, hook: T, deps: D) -> T::Output;
+    fn use_state<T: Clone + Send + Sync + 'static, D: Deps>(
         &mut self,
         default: impl FnOnce() -> T,
         deps: D,
     ) -> State<T>;
-    fn use_persisted_state<T: SerializableAny>(
+    fn use_persisted_state<T: SerializableAny, D: Deps>(
         &mut self,
         default: impl FnOnce() -> T,
         deps: D,
     ) -> State<T>;
-    fn use_memo<T: Clone + Send + Sync + 'static, F: FnMut() -> T>(
+    fn use_memo<T: Clone + Send + Sync + 'static, F: FnMut() -> T, D: Deps>(
         &mut self,
         callback: F,
         deps: D,
     ) -> T;
-    fn use_effect<F: FnOnce() + Send + Sync>(&mut self, callback: F, deps: D);
-    fn use_cleanup<F: FnOnce() + Send + Sync + 'static>(&mut self, callback: F, deps: D);
+    fn use_effect<F: FnOnce() + Send + Sync, D: Deps>(&mut self, callback: F, deps: D);
+    fn use_cleanup<F: FnOnce() + Send + Sync + 'static, D: Deps>(&mut self, callback: F, deps: D);
+    fn use_kv<K: Send + Sync + 'static, V: Send + Sync + 'static>(&mut self) -> Kv<K, V>;
+    fn use_persisted_kv<K: SerializableAny + Eq + std::hash::Hash, V: SerializableAny>(
+        &mut self,
+    ) -> Kv<K, V>;
+    fn use_2f_kv<
+        K: Clone + Eq + std::hash::Hash + Send + Sync + 'static,
+        V: Send + Sync + 'static,
+    >(
+        &mut self,
+    ) -> TwoFrameKv<K, V>;
+    fn use_persisted_2f_kv<K: Clone + Eq + std::hash::Hash + SerializableAny, V: SerializableAny>(
+        &mut self,
+    ) -> TwoFrameKv<K, V>;
+    fn use_ephemeral_kv<K: Eq + std::hash::Hash + Send + Sync + 'static, V: Send + Sync + 'static>(
+        &mut self,
+    ) -> EphemeralKv<K, V>;
 }
 
 /// The hook context for this frame in
@@ -70,9 +89,14 @@ struct ExtContext {
     next_hook_index: Arc<AtomicUsize>,
 }
 
-impl<D: Deps> UseHookExt<D> for egui::Ui {
+impl UseHookExt for egui::Ui {
     #[inline]
-    fn use_hook_as<T: Hook<D>>(&mut self, id: egui::Id, mut hook: T, deps: D) -> T::Output {
+    fn use_hook_as<T: Hook<D>, D: Deps>(
+        &mut self,
+        id: egui::Id,
+        mut hook: T,
+        deps: D,
+    ) -> T::Output {
         // Get hook index
         let context_id = HookContextId {
             frame: self.ctx().frame_nr(),
@@ -108,7 +132,7 @@ impl<D: Deps> UseHookExt<D> for egui::Ui {
     }
 
     #[inline]
-    fn use_hook<T: Hook<D>>(&mut self, hook: T, deps: D) -> T::Output {
+    fn use_hook<T: Hook<D>, D: Deps>(&mut self, hook: T, deps: D) -> T::Output {
         let id = self.id();
         self.use_hook_as(id, hook, deps)
     }
@@ -127,7 +151,7 @@ impl<D: Deps> UseHookExt<D> for egui::Ui {
     /// });
     /// ```
     #[inline]
-    fn use_state<T: Clone + Send + Sync + 'static>(
+    fn use_state<T: Clone + Send + Sync + 'static, D: Deps>(
         &mut self,
         default: impl FnOnce() -> T,
         deps: D,
@@ -136,7 +160,7 @@ impl<D: Deps> UseHookExt<D> for egui::Ui {
     }
 
     #[inline]
-    fn use_persisted_state<T: SerializableAny>(
+    fn use_persisted_state<T: SerializableAny, D: Deps>(
         &mut self,
         default: impl FnOnce() -> T,
         deps: D,
@@ -145,7 +169,7 @@ impl<D: Deps> UseHookExt<D> for egui::Ui {
     }
 
     #[inline]
-    fn use_memo<T: Clone + Send + Sync + 'static, F: FnMut() -> T>(
+    fn use_memo<T: Clone + Send + Sync + 'static, F: FnMut() -> T, D: Deps>(
         &mut self,
         callback: F,
         deps: D,
@@ -154,12 +178,54 @@ impl<D: Deps> UseHookExt<D> for egui::Ui {
     }
 
     #[inline]
-    fn use_effect<F: FnOnce() + Send + Sync>(&mut self, callback: F, deps: D) {
+    fn use_effect<F: FnOnce() + Send + Sync, D: Deps>(&mut self, callback: F, deps: D) {
         self.use_hook(EffectHook { callback }, deps);
     }
 
     #[inline]
-    fn use_cleanup<F: FnOnce() + Send + Sync + 'static>(&mut self, callback: F, deps: D) {
+    fn use_cleanup<F: FnOnce() + Send + Sync + 'static, D: Deps>(&mut self, callback: F, deps: D) {
         self.use_hook(CleanupHook::new(callback), deps)
+    }
+
+    #[inline]
+    fn use_kv<K: Send + Sync + 'static, V: Send + Sync + 'static>(&mut self) -> Kv<K, V> {
+        self.use_hook(KvHook::new(), ())
+    }
+
+    #[inline]
+    fn use_persisted_kv<K: SerializableAny + Eq + std::hash::Hash, V: SerializableAny>(
+        &mut self,
+    ) -> Kv<K, V> {
+        self.use_hook(PersistedKvHook::new(), ())
+    }
+
+    #[inline]
+    fn use_2f_kv<
+        K: Clone + Eq + std::hash::Hash + Send + Sync + 'static,
+        V: Send + Sync + 'static,
+    >(
+        &mut self,
+    ) -> TwoFrameKv<K, V> {
+        self.use_hook(TwoFrameKvHook::new(), ())
+    }
+
+    #[inline]
+    fn use_persisted_2f_kv<
+        K: Clone + Eq + std::hash::Hash + SerializableAny,
+        V: SerializableAny,
+    >(
+        &mut self,
+    ) -> TwoFrameKv<K, V> {
+        self.use_hook(PersistedTwoFrameKvHook::new(), ())
+    }
+
+    #[inline]
+    fn use_ephemeral_kv<
+        K: Eq + std::hash::Hash + Send + Sync + 'static,
+        V: Send + Sync + 'static,
+    >(
+        &mut self,
+    ) -> EphemeralKv<K, V> {
+        self.use_hook(EphemeralKvHook::new(), ())
     }
 }
