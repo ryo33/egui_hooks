@@ -13,6 +13,8 @@ pub trait Hook<D> {
     type Backend: Send + Sync + 'static;
     type Output;
     /// Called when the hook is first called
+    /// You must not call hooks in this function because this function is called only when the
+    /// first time or dependencies are changed.
     fn init(
         &mut self,
         index: usize,
