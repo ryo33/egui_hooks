@@ -7,11 +7,8 @@ React Hooks like API for egui
 This crate provids React Hooks like API for egui.
 
 Though this started as a toy project, eventually I found that it's definitely
-useful and that could be a core building block for both widget development and
-application development. Managing UI states in UI side is the key in recent UI
-development scene, but built-in `egui::Memory` is relatively low-level API and
-not friendly for applcation development, and egui_hooks provides a higher level
-API but with more precise control.
+useful and that could be a core building block for widget development, and also
+for application development.
 
 ## Features
 
@@ -27,7 +24,27 @@ API but with more precise control.
 - Composable: Hooks are composable, you can call existing hooks in your custom
   hooks. For example, `use_state` internally uses `use_2f_kv`.
 - Familiar API: Hooks are designed to be similar to React Hooks API, so you can
-  easily learn how to use them.
+  easily learn how to use them. Managing UI states in UI side is the key in
+  recent UI development scene, but built-in `egui::Memory` is relatively
+  low-level API and not friendly for applcation development, and egui_hooks
+  provides a higher level API but with more precise control.
+
+## Use cases
+
+- `use_state` for states in a specific widget (e.g. animation state, scroll
+  position)
+- `use_state` with `into_var()` to feed a variable in-place to `Window::open` or
+  `TextEdit::singleline`
+- `use_memo`, `use_cache` for caching expensive calculation
+- `use_effect`, `use_future` for side effects (e.g. logging, network request)
+- `use_global` for global settings (e.g. theme, locale)
+- `use_kv` for sharing states between widgets (e.g. getting a position of a
+  specific widget)
+- `use_ephemeral_kv` for storing events in the current frame (e.g. providing
+  custom response on a custom widget)
+- `use_previous_measurement` for using the previous frame result for layouting
+- `use_measurement` for calculating and memoizing the size of a widget for
+  layouting
 
 ## Status
 
@@ -41,7 +58,7 @@ API but with more precise control.
 - [x] `use_ephemeral_kv`
 - [x] `use_global`, `use_persisted_global`, and `use_ephemeral_global`
 - [ ] `use_cache` (a thin wrapper of caches in `egui::Memory`)
-- [ ] `use_previous_area`
+- [ ] `use_previous_measurement`
 - [ ] `use_measurement` (calculate the size of the widget without fear of the
       [2^N problem](https://github.com/emilk/egui/issues/606#issuecomment-899065242).
 - [ ] `use_future` (needs `tokio` feature)
