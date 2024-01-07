@@ -22,7 +22,7 @@ for application development.
   `use_effect(|| log(input), input)`, so you can precisely track the
   dependencies without manually writing `if` statements on state change.
 - Composable: Hooks are composable, you can call existing hooks in your custom
-  hooks. For example, `use_state` internally uses `use_2f_kv`.
+  hooks.
 - Familiar API: Hooks are designed to be similar to React Hooks API, so you can
   easily learn how to use them. Managing UI states in UI side is the key in
   recent UI development scene, but built-in `egui::Memory` is relatively
