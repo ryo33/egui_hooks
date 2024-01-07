@@ -6,8 +6,8 @@ React Hooks like API for egui
 
 This crate provids React Hooks like API for egui.
 
-Though this started as a toy project, eventually I found it definitely useful
-and that it could be a core building block for both widget development and
+Though this started as a toy project, eventually I found that it's definitely
+useful and that could be a core building block for both widget development and
 application development. Managing UI states in UI side is the key in recent UI
 development scene, but built-in `egui::Memory` is relatively low-level API and
 not friendly for applcation development, and egui_hooks provides a higher level
@@ -42,11 +42,12 @@ API but with more precise control.
 - [x] `use_global`, `use_persisted_global`, and `use_ephemeral_global`
 - [ ] `use_cache` (a thin wrapper of caches in `egui::Memory`)
 - [ ] `use_previous_area`
-- [ ] `use_size` (calculate the size of the widget without fear of the
+- [ ] `use_measurement` (calculate the size of the widget without fear of the
       [2^N problem](https://github.com/emilk/egui/issues/606#issuecomment-899065242).
 - [ ] `use_future` (needs `tokio` feature)
 - [ ] `use_throttle` and `use_debounce`
 - [ ] [`use_drag_origin`](https://github.com/ryo33/egui_hooks/issues/9)
+- [ ] `use_two_path` (it's joke, but really want to implement this)
 
 ## Usage
 
