@@ -34,13 +34,13 @@ for application development.
 If you use `use_state(|| 0usize, dep).into_var()` in a widget, the following
 things happen:
 
-1. If it's the first time to call `use_state` in the current frame, it creates a
-   `Arc<ArcSwap<usize>>` in the `egui::Memory` with the default value.
-2. If the `dep` is changed, it stores the default value to the existing
-   `ArcSwap`.
+1. On the first call of `use_state`, it creates a `Arc<ArcSwap<usize>>` in the
+   `egui::Memory` with the default value.
+2. If the `dep` is changed since the last frame, it stores the default value to
+   the existing `ArcSwap`.
 3. Returns a `Var<usize>` to the caller.
 4. Caller can `Deref` or `DerefMut` the `Var` in their widget code.
-5. When the `Var` is dropped, it stores the value to the `ArcSwap`.
+5. When the `Var` is dropped, it stores the updated value to the `ArcSwap`.
 6. Wenn the widget is no longer displayed, the `ArcSwap` is removed from the
    `egui::Memory`.
 
@@ -48,10 +48,10 @@ This is the typical lifecycle of a hook in egui_hooks.
 
 Also, there is a persistent version of `use_state` called `use_persisted_state`.
 It does the similar thing, but it stores the copy of the state to the
-`egui::Memory` with `persisted_` methods. Interestingly, the persisted state is
-also freed when the widget is no longer displayed.
+`egui::Memory` with _persisted_ methods. The persisted state is freed when the
+widget is no longer displayed as like the not-persisted one.
 
-## Use cases
+## Intended use cases
 
 - `use_state` for states in a specific widget (e.g. animation state, scroll
   position)
