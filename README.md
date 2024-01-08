@@ -16,7 +16,7 @@ for application development.
   automatically freed from the HashMap when the widget will be no longer
   displayed. This is based on `TwoFrameMap` (2f kv) defined in this crate.
 - No locking nor callback: You can manage states without `ui.data(|| { ... })`.
-  This is because hooks encapsulate the underlying RwLock.
+  This is because hooks encapsulate the underlying RwLock operation.
 - Dependency tracking: Hooks has dependencies like
   `use_state(|| user_id.clone(), user_id)` or
   `use_effect(|| log(input), input)`, so you can precisely track the
