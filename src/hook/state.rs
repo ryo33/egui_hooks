@@ -39,7 +39,7 @@ impl<F> StateHookInner<F> {
     }
 }
 
-#[cfg_attr(feature = "persistence", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StateBackend<T> {
     inner: Arc<ArcSwap<StateBackendInner<T>>>,
 }
@@ -172,7 +172,7 @@ impl<T> SetState<T> {
 
 impl<T> State<T> {
     #[inline]
-    pub(crate) fn new(backend: &mut StateBackend<T>) -> Self {
+    pub(crate) fn new(backend: &StateBackend<T>) -> Self {
         let guard = backend.load();
         Self {
             current: guard.current.clone(),

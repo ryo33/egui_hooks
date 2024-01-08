@@ -32,7 +32,7 @@ impl<K: Send + Sync + 'static, V: Send + Sync + 'static, D> Hook<D> for KvHook<K
         backend: Option<Self::Backend>,
         ui: &mut egui::Ui,
     ) -> Self::Backend {
-        backend.unwrap_or_else(|| Dispatcher::from_ui(ui).get_kv_or_default())
+        backend.unwrap_or_else(|| Dispatcher::from_ctx(ui.ctx()).get_kv_or_default())
     }
 
     fn hook(self, backend: &mut Self::Backend, _ui: &mut egui::Ui) -> Self::Output {
@@ -67,7 +67,8 @@ impl<K: SerializableAny + Eq + std::hash::Hash, V: SerializableAny, D> Hook<D>
         backend: Option<Self::Backend>,
         ui: &mut egui::Ui,
     ) -> Self::Backend {
-        backend.unwrap_or_else(|| Dispatcher::from_ui(ui).get_persisted_kv_or_default(ui))
+        backend
+            .unwrap_or_else(|| Dispatcher::from_ctx(ui.ctx()).get_persisted_kv_or_default(ui.ctx()))
     }
 
     fn hook(self, backend: &mut Self::Backend, _ui: &mut egui::Ui) -> Self::Output {

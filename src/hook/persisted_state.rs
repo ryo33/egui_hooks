@@ -1,14 +1,17 @@
 use std::sync::Arc;
 
 use egui::util::id_type_map::SerializableAny;
+use parking_lot::RwLock;
 
-use crate::deps::Deps;
+use crate::{deps::Deps, dispatcher::Dispatcher, two_frame_map::TwoFrameMap};
 
 use super::{
     state::{State, StateBackend, StateHookInner},
     Hook,
 };
 
+/// A persisted version of `StateHook`. It will free the persisted value if it's not used for 2 frames in best effort.
+/// The "best effort" means that if no one uses the `PersistedStateHook<T>` with the same `T`, the freeing is postponed until the next time someone uses it.
 pub struct PersistedStateHook<T> {
     inner: StateHookInner<T>,
 }
@@ -22,8 +25,15 @@ impl<T, F: FnOnce() -> T> PersistedStateHook<F> {
     }
 }
 
+type PersistedTwoFrameMap<T> = Arc<RwLock<TwoFrameMap<(egui::Id, usize), StateBackend<T>>>>;
+pub struct PersistedStateBackend<T> {
+    kv: PersistedTwoFrameMap<T>,
+    inner: StateBackend<T>,
+    index: usize,
+}
+
 impl<T: SerializableAny, F: FnOnce() -> T, D: Deps> Hook<D> for PersistedStateHook<F> {
-    type Backend = StateBackend<T>;
+    type Backend = PersistedStateBackend<T>;
     type Output = State<T>;
 
     #[inline]
@@ -34,27 +44,47 @@ impl<T: SerializableAny, F: FnOnce() -> T, D: Deps> Hook<D> for PersistedStateHo
         backend: Option<Self::Backend>,
         ui: &mut egui::Ui,
     ) -> Self::Backend {
-        let init = Arc::new(self.inner.take()());
-        if let Some(backend) = backend {
-            let guard = backend.load();
-            backend.store(init, Some(guard.current.clone()));
+        let default = Arc::new((self.inner.take())());
+        let backend = if let Some(backend) = backend {
+            let previous = backend.inner.load().current.clone();
+            println!("updated ");
+            backend.inner.store(default, Some(previous));
             backend
         } else {
-            let key = ui.id().with(("persisted state", index));
-            ui.data_mut(|data| {
-                // TODO: use TwoFrameMap instead of directly using IdTypeMap
-                data.get_persisted_mut_or_insert_with::<StateBackend<T>>(key, || {
-                    StateBackend::new(init, None)
-                })
-                .clone()
-            })
-            .clone()
-        }
+            let kv = Dispatcher::from_ctx(ui.ctx())
+                .get_persisted_kv_or_default::<(), PersistedTwoFrameMap<T>>(ui.ctx())
+                .write()
+                .entry(())
+                .or_default()
+                .clone();
+            // Use the persisted backend if it exists
+            let backend = kv
+                .write()
+                .entry((ui.id(), index))
+                .or_insert_with(|| StateBackend::new(default, None))
+                .clone();
+            PersistedStateBackend {
+                kv,
+                inner: backend,
+                index,
+            }
+        };
+        backend
     }
 
     #[inline]
-    fn hook(self, backend: &mut Self::Backend, _ui: &mut egui::Ui) -> Self::Output {
-        State::new(backend)
+    fn hook(self, backend: &mut Self::Backend, ui: &mut egui::Ui) -> Self::Output {
+        let mut lock = backend.kv.write();
+        // Don't forget to advance frame
+        lock.may_advance_frame(ui.ctx().frame_nr());
+        // This `or_insert_with` is theoretically never called because the outer backend in
+        // the dispatcher has longer lifetime than internal one.
+        // Always: dispatcher.get_backend -> this line -> dispatcher.get_backend -> this line
+        let state = lock
+            .entry((ui.id(), backend.index))
+            .or_insert_with(|| backend.inner.clone())
+            .clone();
+        State::new(&state)
     }
 }
 
@@ -64,7 +94,7 @@ fn test_saved_on_init() {
     egui::containers::Area::new("test").show(&ctx, |ui| {
         let mut hook = PersistedStateHook::new(|| 42);
         hook.init(0, &(), None, ui);
-        assert_eq!(get_persisted::<i32>(0, ui), 42);
+        assert_eq!(get_persisted::<i32>(0, &ctx, "test"), Some(42));
     });
 }
 
@@ -76,7 +106,7 @@ fn test_saved_on_set_next() {
         let mut backend = hook.init(0, &(), None, ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
         state.set_next(43);
-        assert_eq!(get_persisted::<i32>(0, ui), 43);
+        assert_eq!(get_persisted::<i32>(0, &ctx, "test"), Some(43));
     });
 }
 
@@ -91,60 +121,105 @@ fn no_deadlock() {
         ui.data_mut(|_data| {
             state.set_next(43);
         });
-        assert_eq!(get_persisted::<i32>(0, ui), 43);
+        assert_eq!(get_persisted::<i32>(0, &ctx, "test"), Some(43));
     });
 }
 
 #[test]
 fn use_persisted_value_on_init() {
     let ctx = egui::Context::default();
-    let id = egui::Id::new("test");
-    ctx.data_mut(|data| {
-        data.insert_persisted::<StateBackend<i32>>(
-            id.with(("persisted state", 0)),
-            StateBackend::new(Arc::new(12345), None),
-        );
-    });
+    set_persisted(0, &ctx, StateBackend::new(Arc::new(12345), None), "test");
     egui::containers::Area::new("test").show(&ctx, |ui| {
         let mut hook = PersistedStateHook::new(|| 42);
         let mut backend = hook.init(0, &(), None, ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
-        assert_eq!(get_persisted::<i32>(0, ui), 12345);
+        assert_eq!(get_persisted::<i32>(0, &ctx, "test"), Some(12345));
         assert_eq!(*state, 12345);
         state.set_next(43);
-        assert_eq!(get_persisted::<i32>(0, ui), 43);
+        assert_eq!(get_persisted::<i32>(0, &ctx, "test"), Some(43));
     });
 }
 
 #[test]
 fn init_with_last_backend_updates_with_new_default_value() {
     let ctx = egui::Context::default();
-    let id = egui::Id::new("test");
-    let backend = StateBackend::new(Arc::new(12345), None);
-    ctx.data_mut(|data| {
-        data.insert_persisted::<StateBackend<i32>>(
-            id.with(("persisted state", 0)),
-            backend.clone(),
-        );
-    });
+    let inner = StateBackend::new(Arc::new(12345), None);
+    let backend = set_persisted(0, &ctx, inner.clone(), "test");
     egui::containers::Area::new("test").show(&ctx, |ui| {
         let mut hook = PersistedStateHook::new(|| 42);
         let mut backend = hook.init(0, &(), Some(backend), ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
-        assert_eq!(get_persisted::<i32>(0, ui), 42);
+        assert_eq!(get_persisted::<i32>(0, &ctx, "test"), Some(42));
         assert_eq!(*state, 42);
         assert_eq!(state.previous(), Some(&12345));
     });
 }
 
+#[test]
+fn cleanup() {
+    let ctx = egui::Context::default();
+
+    let _ = ctx.run(Default::default(), |ctx| {
+        egui::Area::new("test").show(ctx, |ui| {
+            let mut hook = PersistedStateHook::new(|| 42);
+            let mut backend = hook.init(0, &(), None, ui);
+            let state = Hook::<()>::hook(hook, &mut backend, ui);
+            assert_eq!(*state, 42);
+            assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(42));
+        });
+    });
+
+    let _ = ctx.run(Default::default(), |ctx| {
+        // ensure the advance of frame
+        egui::Area::new("test2").show(ctx, |ui| {
+            use crate::UseHookExt;
+            ui.use_persisted_state(|| 0, ());
+        });
+        // Not cleaned since this is the second frame
+        assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(42));
+    });
+
+    let _ = ctx.run(Default::default(), |ctx| {
+        // ensure the advance of frame
+        egui::Area::new("test2").show(ctx, |ui| {
+            use crate::UseHookExt;
+            ui.use_persisted_state(|| 0, ());
+        });
+        // Cleaned since this is the third frame
+        assert!(get_persisted::<i32>(0, ctx, "test").is_none());
+    });
+}
+
 #[cfg(test)]
-fn get_persisted<T: SerializableAny>(index: usize, ui: &mut egui::Ui) -> T {
-    ui.data_mut(|data| {
-        data.get_persisted::<StateBackend<T>>(ui.id().with(("persisted state", index)))
-            .unwrap()
-    })
-    .load()
-    .current
-    .as_ref()
-    .clone()
+fn set_persisted<T: SerializableAny>(
+    index: usize,
+    ctx: &egui::Context,
+    backend: StateBackend<T>,
+    id: &str,
+) -> PersistedStateBackend<T> {
+    let kv = Dispatcher::from_ctx(ctx)
+        .get_persisted_kv_or_default::<(), PersistedTwoFrameMap<T>>(ctx)
+        .write()
+        .entry(())
+        .or_default()
+        .clone();
+    kv.write()
+        .insert((egui::Id::new(id), index), backend.clone());
+    PersistedStateBackend {
+        kv,
+        inner: backend,
+        index,
+    }
+}
+
+#[cfg(test)]
+fn get_persisted<T: SerializableAny>(index: usize, ctx: &egui::Context, id: &str) -> Option<T> {
+    Dispatcher::from_ctx(ctx)
+        .get_persisted_kv_or_default::<(), PersistedTwoFrameMap<T>>(ctx)
+        .read()
+        .get(&())
+        .unwrap()
+        .write()
+        .peek(&(egui::Id::new(id), index))
+        .map(|backend| backend.load().current.as_ref().clone())
 }

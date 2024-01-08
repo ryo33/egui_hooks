@@ -13,6 +13,12 @@ pub struct TwoFrameMap<K: Eq + std::hash::Hash, V> {
     cleanup: Cleanups<K>,
 }
 
+#[test]
+fn serializable_any() {
+    fn assert_serializable_any<T: egui::util::id_type_map::SerializableAny>() {}
+    assert_serializable_any::<TwoFrameMap<u32, u32>>();
+}
+
 pub struct Cleanups<K> {
     vec: Vec<(K, Box<dyn Cleanup>)>,
 }
@@ -33,6 +39,18 @@ impl<K: Eq + std::hash::Hash, V> Default for TwoFrameMap<K, V> {
             frame_nr: 0,
             current: HashMap::default(),
             previous: HashMap::default(),
+            cleanup: Default::default(),
+        }
+    }
+}
+
+impl<K: Eq + std::hash::Hash + Clone, V: Clone> Clone for TwoFrameMap<K, V> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Self {
+            frame_nr: self.frame_nr,
+            current: self.current.clone(),
+            previous: self.previous.clone(),
             cleanup: Default::default(),
         }
     }
@@ -81,6 +99,12 @@ impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
     }
 
     #[inline]
+    /// Peek the value in the map without advancing the frame.
+    pub fn peek(&self, key: &K) -> Option<&V> {
+        self.current.get(key).or_else(|| self.previous.get(key))
+    }
+
+    #[inline]
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
         if !self.current.contains_key(key) {
             if let Some(value) = self.previous.remove(key) {
@@ -88,6 +112,13 @@ impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
             }
         }
         self.current.get_mut(key)
+    }
+
+    #[inline]
+    pub fn peek_mut(&mut self, key: &K) -> Option<&mut V> {
+        self.current
+            .get_mut(key)
+            .or_else(|| self.previous.get_mut(key))
     }
 
     #[inline]
@@ -103,6 +134,31 @@ impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
     #[inline]
     pub fn insert(&mut self, key: K, value: V) {
         self.current.insert(key, value);
+    }
+
+    #[inline]
+    pub fn contains_key(&mut self, key: &K) -> bool {
+        self.current.contains_key(key) || self.previous.contains_key(key)
+    }
+
+    #[inline]
+    pub fn current(&self) -> &HashMap<K, V> {
+        &self.current
+    }
+
+    #[inline]
+    pub fn current_mut(&mut self) -> &mut HashMap<K, V> {
+        &mut self.current
+    }
+
+    #[inline]
+    pub fn previous(&self) -> &HashMap<K, V> {
+        &self.previous
+    }
+
+    #[inline]
+    pub fn previous_mut(&mut self) -> &mut HashMap<K, V> {
+        &mut self.previous
     }
 
     #[inline]

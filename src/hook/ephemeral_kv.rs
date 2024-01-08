@@ -1,8 +1,8 @@
-use std::{any::TypeId, sync::Arc};
+use std::sync::Arc;
 
 use parking_lot::{lock_api::ArcRwLockWriteGuard, RawRwLock, RwLock};
 
-use crate::{ephemeral_map::EphemeralMap, UseHookExt as _};
+use crate::{dispatcher::Dispatcher, ephemeral_map::EphemeralMap};
 
 use super::Hook;
 
@@ -23,7 +23,7 @@ impl<K, V> EphemeralKvHook<K, V> {
 impl<K: Eq + std::hash::Hash + Send + Sync + 'static, V: Send + Sync + 'static, D> Hook<D>
     for EphemeralKvHook<K, V>
 {
-    type Backend = ();
+    type Backend = Arc<RwLock<EphemeralMap<K, V>>>;
     type Output = EphemeralKv<K, V>;
 
     fn init(
@@ -31,16 +31,20 @@ impl<K: Eq + std::hash::Hash + Send + Sync + 'static, V: Send + Sync + 'static, 
         _index: usize,
         _deps: &D,
         _backend: Option<Self::Backend>,
-        _ui: &mut egui::Ui,
+        ui: &mut egui::Ui,
     ) -> Self::Backend {
+        // Using hashmap for singleton key-value is inefficient, but it's not a big deal because
+        // it's cached as the backend on init.
+        Dispatcher::from_ctx(ui.ctx())
+            .get_kv_or_default::<(), Self::Backend>()
+            .write()
+            .entry(())
+            .or_default()
+            .clone()
     }
 
-    fn hook(self, _backend: &mut Self::Backend, ui: &mut egui::Ui) -> Self::Output {
-        let mut kv = ui.use_kv::<(TypeId, TypeId), Arc<RwLock<EphemeralMap<K, V>>>>();
-        let mut lock = kv
-            .entry((TypeId::of::<K>(), TypeId::of::<V>()))
-            .or_insert_with(|| Arc::new(RwLock::new(EphemeralMap::<K, V>::new())))
-            .write_arc();
+    fn hook(self, backend: &mut Self::Backend, ui: &mut egui::Ui) -> Self::Output {
+        let mut lock = backend.write_arc();
         lock.may_advance_frame(ui.ctx().frame_nr());
         EphemeralKv(lock)
     }
@@ -70,16 +74,18 @@ fn clears_on_frame_advance() {
 
     let _ = ctx.run(Default::default(), |ctx| {
         egui::Area::new("test").show(ctx, |ui| {
-            let hook = EphemeralKvHook::<u32, u32>::new();
-            let mut kv = Hook::<()>::hook(hook, &mut (), ui);
+            let mut hook = EphemeralKvHook::<u32, u32>::new();
+            let mut backend = hook.init(0, &(), None, ui);
+            let mut kv = Hook::<()>::hook(hook, &mut backend, ui);
             kv.insert(0, 0);
             kv.insert(1, 1);
         });
 
         // same frame
         egui::Area::new("test").show(ctx, |ui| {
-            let hook = EphemeralKvHook::<u32, u32>::new();
-            let mut kv = Hook::<()>::hook(hook, &mut (), ui);
+            let mut hook = EphemeralKvHook::<u32, u32>::new();
+            let mut backend = hook.init(0, &(), None, ui);
+            let mut kv = Hook::<()>::hook(hook, &mut backend, ui);
             // Can be accessed because it's still in the same frame
             assert_eq!(kv.get(&0), Some(&0));
             assert_eq!(kv.get(&1), Some(&1));
@@ -91,8 +97,9 @@ fn clears_on_frame_advance() {
     let _ = ctx.run(Default::default(), |ctx| {
         egui::Area::new("test").show(ctx, |ui| {
             assert_eq!(ui.ctx().frame_nr(), 1);
-            let hook = EphemeralKvHook::<u32, u32>::new();
-            let mut kv = Hook::<()>::hook(hook, &mut (), ui);
+            let mut hook = EphemeralKvHook::<u32, u32>::new();
+            let mut backend = hook.init(0, &(), None, ui);
+            let mut kv = Hook::<()>::hook(hook, &mut backend, ui);
             assert!(kv.get(&0).is_none());
             assert!(kv.get(&1).is_none());
         });

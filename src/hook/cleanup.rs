@@ -28,7 +28,7 @@ impl<D: Deps> Hook<D> for CleanupHook {
         ui: &mut egui::Ui,
     ) -> Self::Backend {
         let id = ui.id();
-        let dispatcher = Dispatcher::from_ui(ui);
+        let dispatcher = Dispatcher::from_ctx(ui.ctx());
         dispatcher.register_cleanup(id, self.f.take().unwrap().into());
     }
     #[inline]

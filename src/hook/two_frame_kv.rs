@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use egui::util::id_type_map::{SerializableAny, TypeId};
+use egui::util::id_type_map::SerializableAny;
 use parking_lot::{lock_api::ArcRwLockWriteGuard, RawRwLock, RwLock};
 
-use crate::{two_frame_map::TwoFrameMap, UseHookExt};
+use crate::{dispatcher::Dispatcher, two_frame_map::TwoFrameMap};
 
 use super::Hook;
 
@@ -24,7 +24,7 @@ impl<K, V> TwoFrameKvHook<K, V> {
 impl<K: Clone + Eq + std::hash::Hash + Send + Sync + 'static, V: Send + Sync + 'static, D> Hook<D>
     for TwoFrameKvHook<K, V>
 {
-    type Backend = ();
+    type Backend = Arc<RwLock<TwoFrameMap<K, V>>>;
     type Output = TwoFrameKv<K, V>;
 
     fn init(
@@ -32,16 +32,19 @@ impl<K: Clone + Eq + std::hash::Hash + Send + Sync + 'static, V: Send + Sync + '
         _index: usize,
         _deps: &D,
         _backend: Option<Self::Backend>,
-        _ui: &mut egui::Ui,
+        ui: &mut egui::Ui,
     ) -> Self::Backend {
+        // Using hashmap for singleton key-value is inefficient, but it's not a big deal because it's cached as the backend on init.
+        Dispatcher::from_ctx(ui.ctx())
+            .get_kv_or_default::<(), Self::Backend>()
+            .write()
+            .entry(())
+            .or_default()
+            .clone()
     }
 
-    fn hook(self, _backend: &mut Self::Backend, ui: &mut egui::Ui) -> Self::Output {
-        let mut kv = ui.use_kv::<(TypeId, TypeId), Arc<RwLock<TwoFrameMap<K, V>>>>();
-        let mut lock = kv
-            .entry((TypeId::of::<K>(), TypeId::of::<V>()))
-            .or_insert_with(|| Arc::new(RwLock::new(TwoFrameMap::<K, V>::new())))
-            .write_arc();
+    fn hook(self, backend: &mut Self::Backend, ui: &mut egui::Ui) -> Self::Output {
+        let mut lock = backend.write_arc();
         lock.may_advance_frame(ui.ctx().frame_nr());
         TwoFrameKv(lock)
     }
@@ -64,7 +67,7 @@ impl<K, V> PersistedTwoFrameKvHook<K, V> {
 impl<K: Clone + Eq + std::hash::Hash + SerializableAny, V: SerializableAny, D> Hook<D>
     for PersistedTwoFrameKvHook<K, V>
 {
-    type Backend = ();
+    type Backend = Arc<RwLock<TwoFrameMap<K, V>>>;
     type Output = TwoFrameKv<K, V>;
 
     fn init(
@@ -72,16 +75,19 @@ impl<K: Clone + Eq + std::hash::Hash + SerializableAny, V: SerializableAny, D> H
         _index: usize,
         _deps: &D,
         _backend: Option<Self::Backend>,
-        _ui: &mut egui::Ui,
+        ui: &mut egui::Ui,
     ) -> Self::Backend {
+        // Using hashmap for singleton key-value is inefficient, but it's not a big deal because it's cached as the backend on init.
+        Dispatcher::from_ctx(ui.ctx())
+            .get_persisted_kv_or_default::<(), Self::Backend>(ui.ctx())
+            .write()
+            .entry(())
+            .or_default()
+            .clone()
     }
 
-    fn hook(self, _backend: &mut Self::Backend, ui: &mut egui::Ui) -> Self::Output {
-        let mut kv = ui.use_persisted_kv::<(TypeId, TypeId), Arc<RwLock<TwoFrameMap<K, V>>>>();
-        let mut lock = kv
-            .entry((TypeId::of::<K>(), TypeId::of::<V>()))
-            .or_insert_with(|| Arc::new(RwLock::new(TwoFrameMap::<K, V>::new())))
-            .write_arc();
+    fn hook(self, backend: &mut Self::Backend, ui: &mut egui::Ui) -> Self::Output {
+        let mut lock = backend.write_arc();
         lock.may_advance_frame(ui.ctx().frame_nr());
         TwoFrameKv(lock)
     }

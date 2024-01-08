@@ -37,8 +37,8 @@ struct Backend {
 
 impl Dispatcher {
     #[inline]
-    pub(crate) fn from_ui(ui: &egui::Ui) -> Arc<Self> {
-        ui.data_mut(|data| {
+    pub(crate) fn from_ctx(ctx: &egui::Context) -> Arc<Self> {
+        ctx.data_mut(|data| {
             data.get_temp_mut_or_default::<Arc<Dispatcher>>(egui::Id::NULL)
                 .clone()
         })
@@ -119,14 +119,14 @@ impl Dispatcher {
         V: SerializableAny,
     >(
         &self,
-        ui: &mut egui::Ui,
+        ctx: &egui::Context,
     ) -> Arc<RwLock<HashMap<K, V>>> {
         self.persisted_kvs
             .write()
             .entry((TypeId::of::<K>(), TypeId::of::<V>()))
             .or_insert_with(|| {
                 // Clone from egui data
-                ui.data_mut(|data| {
+                ctx.data_mut(|data| {
                     Box::new(
                         data.get_persisted_mut_or_insert_with::<Arc<RwLock<HashMap<K, V>>>>(
                             egui::Id::new((TypeId::of::<K>(), TypeId::of::<V>())),

@@ -107,7 +107,7 @@ impl UseHookExt for egui::Ui {
             let context = cache.get(context_id);
             context.next_hook_index.fetch_add(1, Ordering::SeqCst)
         });
-        let dispatcher = Dispatcher::from_ui(self);
+        let dispatcher = Dispatcher::from_ctx(self.ctx());
         dispatcher.may_advance_frame(self.ctx().frame_nr());
         let (mut backend, deps) =
             if let Some((backend, old_deps)) = dispatcher.get_backend::<T, D>(id, hook_index) {
