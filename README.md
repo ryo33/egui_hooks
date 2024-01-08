@@ -1,6 +1,6 @@
 # egui_hooks
 
-React Hooks like API for egui
+React Hooks like API for enhancing the ergonomics of `egui::Memory`
 
 ## Overview
 
