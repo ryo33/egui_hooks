@@ -91,7 +91,7 @@ impl<T: SerializableAny, F: FnOnce() -> T, D: Deps> Hook<D> for PersistedStateHo
 #[test]
 fn test_saved_on_init() {
     let ctx = egui::Context::default();
-    egui::containers::Area::new("test").show(&ctx, |ui| {
+    egui::containers::Area::new("test".into()).show(&ctx, |ui| {
         let mut hook = PersistedStateHook::new(|| 42);
         hook.init(0, &(), None, ui);
         assert_eq!(get_persisted::<i32>(0, &ctx, "test"), Some(42));
@@ -101,7 +101,7 @@ fn test_saved_on_init() {
 #[test]
 fn test_saved_on_set_next() {
     let ctx = egui::Context::default();
-    egui::containers::Area::new("test").show(&ctx, |ui| {
+    egui::containers::Area::new("test".into()).show(&ctx, |ui| {
         let mut hook = PersistedStateHook::new(|| 42);
         let mut backend = hook.init(0, &(), None, ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
@@ -113,7 +113,7 @@ fn test_saved_on_set_next() {
 #[test]
 fn no_deadlock() {
     let ctx = egui::Context::default();
-    egui::containers::Area::new("test").show(&ctx, |ui| {
+    egui::containers::Area::new("test".into()).show(&ctx, |ui| {
         let mut hook = PersistedStateHook::new(|| 42);
         let mut backend = hook.init(0, &(), None, ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
@@ -129,7 +129,7 @@ fn no_deadlock() {
 fn use_persisted_value_on_init() {
     let ctx = egui::Context::default();
     set_persisted(0, &ctx, StateBackend::new(Arc::new(12345), None), "test");
-    egui::containers::Area::new("test").show(&ctx, |ui| {
+    egui::containers::Area::new("test".into()).show(&ctx, |ui| {
         let mut hook = PersistedStateHook::new(|| 42);
         let mut backend = hook.init(0, &(), None, ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
@@ -145,7 +145,7 @@ fn init_with_last_backend_updates_with_new_default_value() {
     let ctx = egui::Context::default();
     let inner = StateBackend::new(Arc::new(12345), None);
     let backend = set_persisted(0, &ctx, inner.clone(), "test");
-    egui::containers::Area::new("test").show(&ctx, |ui| {
+    egui::containers::Area::new("test".into()).show(&ctx, |ui| {
         let mut hook = PersistedStateHook::new(|| 42);
         let mut backend = hook.init(0, &(), Some(backend), ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
@@ -160,7 +160,7 @@ fn cleanup() {
     let ctx = egui::Context::default();
 
     let _ = ctx.run(Default::default(), |ctx| {
-        egui::Area::new("test").show(ctx, |ui| {
+        egui::Area::new("test".into()).show(ctx, |ui| {
             let mut hook = PersistedStateHook::new(|| 42);
             let mut backend = hook.init(0, &(), None, ui);
             let state = Hook::<()>::hook(hook, &mut backend, ui);
@@ -171,7 +171,7 @@ fn cleanup() {
 
     let _ = ctx.run(Default::default(), |ctx| {
         // ensure the advance of frame
-        egui::Area::new("test2").show(ctx, |ui| {
+        egui::Area::new("test2".into()).show(ctx, |ui| {
             use crate::UseHookExt;
             ui.use_persisted_state(|| 0, ());
         });
@@ -181,7 +181,7 @@ fn cleanup() {
 
     let _ = ctx.run(Default::default(), |ctx| {
         // ensure the advance of frame
-        egui::Area::new("test2").show(ctx, |ui| {
+        egui::Area::new("test2".into()).show(ctx, |ui| {
             use crate::UseHookExt;
             ui.use_persisted_state(|| 0, ());
         });

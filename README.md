@@ -1,5 +1,10 @@
 # egui_hooks
 
+[![GitHub](https://img.shields.io/badge/GitHub-ryo33/egui__hooks-222222)](https://github.com/ryo33/egui_hooks)
+![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)
+[![Crates.io](https://img.shields.io/crates/v/egui_hooks)](https://crates.io/crates/egui_hooks)
+[![docs.rs](https://img.shields.io/docsrs/egui_hooks)](https://docs.rs/egui_hooks)
+
 React Hooks like API for enhancing the ergonomics of `egui::Memory`
 
 | egui version | egui_hooks version |
@@ -17,6 +22,9 @@ This crate provids React Hooks like API for egui.
 Though this started as a toy project, eventually I found that it's definitely
 useful and that could be a core building block for widget development, and also
 for application development.
+
+Look at the [examples](https://github.com/ryo33/egui_hooks/tree/main/examples), run
+`cargo run --example <example-name>` to see the demo.
 
 ## Features
 
@@ -57,7 +65,7 @@ This is the typical lifecycle of a hook in egui_hooks.
 Also, there is a persistent version of `use_state` called `use_persisted_state`.
 It does the similar thing, but it stores the copy of the state to the
 `egui::Memory` with _persisted_ methods. The persisted state is freed when the
-widget is no longer displayed as like the not-persisted one.
+widget is no longer displayed as like the not-persisted one. **You need `persistence` feature to use persisted hooks.**
 
 ## Intended use cases
 

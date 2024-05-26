@@ -73,7 +73,7 @@ fn clears_on_frame_advance() {
     let ctx = egui::Context::default();
 
     let _ = ctx.run(Default::default(), |ctx| {
-        egui::Area::new("test").show(ctx, |ui| {
+        egui::Area::new("test".into()).show(ctx, |ui| {
             let mut hook = EphemeralKvHook::<u32, u32>::new();
             let mut backend = hook.init(0, &(), None, ui);
             let mut kv = Hook::<()>::hook(hook, &mut backend, ui);
@@ -82,7 +82,7 @@ fn clears_on_frame_advance() {
         });
 
         // same frame
-        egui::Area::new("test").show(ctx, |ui| {
+        egui::Area::new("test".into()).show(ctx, |ui| {
             let mut hook = EphemeralKvHook::<u32, u32>::new();
             let mut backend = hook.init(0, &(), None, ui);
             let mut kv = Hook::<()>::hook(hook, &mut backend, ui);
@@ -95,7 +95,7 @@ fn clears_on_frame_advance() {
 
     // next frame
     let _ = ctx.run(Default::default(), |ctx| {
-        egui::Area::new("test").show(ctx, |ui| {
+        egui::Area::new("test".into()).show(ctx, |ui| {
             assert_eq!(ui.ctx().frame_nr(), 1);
             let mut hook = EphemeralKvHook::<u32, u32>::new();
             let mut backend = hook.init(0, &(), None, ui);

@@ -249,7 +249,7 @@ macros::state_derive!(State);
 fn test_not_clonable_state() {
     struct NotClonable;
     let ctx = egui::Context::default();
-    egui::Area::new("test").show(&ctx, |ui| {
+    egui::Area::new("test".into()).show(&ctx, |ui| {
         let mut hook = StateHook::new(|| NotClonable);
         let mut backend = hook.init(0, &(), None, ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
@@ -261,7 +261,7 @@ fn test_not_clonable_state() {
 #[test]
 fn test_default_state() {
     let ctx = egui::Context::default();
-    egui::Area::new("test").show(&ctx, |ui| {
+    egui::Area::new("test".into()).show(&ctx, |ui| {
         let mut hook = StateHook::new(|| 42);
         let mut backend = hook.init(0, &(), None, ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
@@ -273,7 +273,7 @@ fn test_default_state() {
 #[test]
 fn test_set_new_state() {
     let ctx = egui::Context::default();
-    egui::Area::new("test").show(&ctx, |ui| {
+    egui::Area::new("test".into()).show(&ctx, |ui| {
         let mut hook = StateHook::new(|| 42);
         let mut backend = hook.init(0, &(), None, ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
@@ -290,7 +290,7 @@ fn test_set_new_state() {
 #[test]
 fn test_previous_value_with_multiple_set() {
     let ctx = egui::Context::default();
-    egui::Area::new("test").show(&ctx, |ui| {
+    egui::Area::new("test".into()).show(&ctx, |ui| {
         let mut hook = StateHook::new(|| 42);
         let mut backend = hook.init(0, &(), None, ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
@@ -309,7 +309,7 @@ fn test_previous_value_with_multiple_set() {
 #[test]
 fn test_update_next() {
     let ctx = egui::Context::default();
-    egui::Area::new("test").show(&ctx, |ui| {
+    egui::Area::new("test".into()).show(&ctx, |ui| {
         let mut hook = StateHook::new(|| 42);
         let mut backend = hook.init(0, &(), None, ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
@@ -329,7 +329,7 @@ fn test_update_next() {
 #[test]
 fn test_update_can_use_value_from_set_next() {
     let ctx = egui::Context::default();
-    egui::Area::new("test").show(&ctx, |ui| {
+    egui::Area::new("test".into()).show(&ctx, |ui| {
         let mut hook = StateHook::new(|| 42);
         let mut backend = hook.init(0, &(), None, ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);
@@ -347,7 +347,7 @@ fn test_update_can_use_value_from_set_next() {
 #[test]
 fn use_previous_backend_on_init() {
     let ctx = egui::Context::default();
-    egui::Area::new("test").show(&ctx, |ui| {
+    egui::Area::new("test".into()).show(&ctx, |ui| {
         let mut hook = StateHook::new(|| 42);
         let mut backend = hook.init(0, &(), Some(StateBackend::new(Arc::new(100), None)), ui);
         let state = Hook::<()>::hook(hook, &mut backend, ui);

@@ -1,6 +1,6 @@
 [package]
 name = "egui_hooks"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 description = "React Hooks like API for egui"
 categories = ["gui"]
@@ -21,13 +21,13 @@ persistence = [
 serde = ["egui/serde", "arc-swap/serde", "dep:serde", "parking_lot/serde"]
 
 [dependencies]
-egui = "0.26"
+egui = "0.27"
 arc-swap = "1.7"
 serde = { version = "1", features = ["derive"], optional = true }
 parking_lot = { version = "0.12", features = ["arc_lock"] }
 
 [dev-dependencies]
-eframe = { version = "0.26" }
+eframe = { version = "0.27" }
 
 [[example]]
 name = "use_persisted_state"

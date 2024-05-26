@@ -42,7 +42,7 @@ fn cleanup() {
     let called = std::sync::Arc::new(egui::mutex::Mutex::new(Vec::new()));
 
     let _ = ctx.run(Default::default(), |ctx| {
-        egui::Area::new("test").show(ctx, |ui| {
+        egui::Area::new("test".into()).show(ctx, |ui| {
             let cloned = called.clone();
             ui.use_cleanup(move || cloned.lock().push(()), ());
         });
@@ -53,7 +53,7 @@ fn cleanup() {
 
     let _ = ctx.run(Default::default(), |ctx| {
         // ensure the advance of frame
-        egui::Area::new("test2").show(ctx, |ui| {
+        egui::Area::new("test2".into()).show(ctx, |ui| {
             ui.use_state(|| 0u32, ());
         });
 
@@ -63,7 +63,7 @@ fn cleanup() {
 
     let _ = ctx.run(Default::default(), |ctx| {
         // ensure the advance of frame
-        egui::Area::new("test2").show(ctx, |ui| {
+        egui::Area::new("test2".into()).show(ctx, |ui| {
             ui.use_state(|| 0u32, ());
         });
 
