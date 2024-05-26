@@ -2,6 +2,14 @@
 
 React Hooks like API for enhancing the ergonomics of `egui::Memory`
 
+| egui version | egui_hooks version |
+| ------------ | ------------------ |
+| egui@0.24.0  | 0.1.2              |
+| egui@0.25.0  | 0.2.0              |
+| egui@0.26.0  | 0.3.0              |
+| egui@0.27.0  | 0.4.0              |
+
+
 ## Overview
 
 This crate provids React Hooks like API for egui.
