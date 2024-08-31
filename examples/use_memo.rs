@@ -2,7 +2,12 @@ use eframe::egui;
 use egui_hooks::UseHookExt as _;
 
 fn main() {
-    eframe::run_native("example", Default::default(), Box::new(|_| Box::new(MyApp))).unwrap();
+    eframe::run_native(
+        "example",
+        Default::default(),
+        Box::new(|_| Ok(Box::new(MyApp))),
+    )
+    .unwrap();
 }
 
 struct MyApp;

@@ -249,109 +249,123 @@ macros::state_derive!(State);
 fn test_not_clonable_state() {
     struct NotClonable;
     let ctx = egui::Context::default();
-    egui::Area::new("test".into()).show(&ctx, |ui| {
-        let mut hook = StateHook::new(|| NotClonable);
-        let mut backend = hook.init(0, &(), None, ui);
-        let state = Hook::<()>::hook(hook, &mut backend, ui);
-        let _ = *state;
-        let _ = state.previous();
+    let _ = ctx.run(Default::default(), |ctx| {
+        egui::Area::new("test".into()).show(ctx, |ui| {
+            let mut hook = StateHook::new(|| NotClonable);
+            let mut backend = hook.init(0, &(), None, ui);
+            let state = Hook::<()>::hook(hook, &mut backend, ui);
+            let _ = *state;
+            let _ = state.previous();
+        });
     });
 }
 
 #[test]
 fn test_default_state() {
     let ctx = egui::Context::default();
-    egui::Area::new("test".into()).show(&ctx, |ui| {
-        let mut hook = StateHook::new(|| 42);
-        let mut backend = hook.init(0, &(), None, ui);
-        let state = Hook::<()>::hook(hook, &mut backend, ui);
-        assert_eq!(*state, 42);
-        assert_eq!(state.previous(), None);
+    let _ = ctx.run(Default::default(), |ctx| {
+        egui::Area::new("test".into()).show(ctx, |ui| {
+            let mut hook = StateHook::new(|| 42);
+            let mut backend = hook.init(0, &(), None, ui);
+            let state = Hook::<()>::hook(hook, &mut backend, ui);
+            assert_eq!(*state, 42);
+            assert_eq!(state.previous(), None);
+        });
     });
 }
 
 #[test]
 fn test_set_new_state() {
     let ctx = egui::Context::default();
-    egui::Area::new("test".into()).show(&ctx, |ui| {
-        let mut hook = StateHook::new(|| 42);
-        let mut backend = hook.init(0, &(), None, ui);
-        let state = Hook::<()>::hook(hook, &mut backend, ui);
-        assert_eq!(*state, 42);
-        assert_eq!(state.previous(), None);
-        state.set_next(43);
-        let hook = StateHook::new(|| 42);
-        let state = Hook::<()>::hook(hook, &mut backend, ui);
-        assert_eq!(*state, 43);
-        assert_eq!(state.previous(), Some(&42));
+    let _ = ctx.run(Default::default(), |ctx| {
+        egui::Area::new("test".into()).show(ctx, |ui| {
+            let mut hook = StateHook::new(|| 42);
+            let mut backend = hook.init(0, &(), None, ui);
+            let state = Hook::<()>::hook(hook, &mut backend, ui);
+            assert_eq!(*state, 42);
+            assert_eq!(state.previous(), None);
+            state.set_next(43);
+            let hook = StateHook::new(|| 42);
+            let state = Hook::<()>::hook(hook, &mut backend, ui);
+            assert_eq!(*state, 43);
+            assert_eq!(state.previous(), Some(&42));
+        });
     });
 }
 
 #[test]
 fn test_previous_value_with_multiple_set() {
     let ctx = egui::Context::default();
-    egui::Area::new("test".into()).show(&ctx, |ui| {
-        let mut hook = StateHook::new(|| 42);
-        let mut backend = hook.init(0, &(), None, ui);
-        let state = Hook::<()>::hook(hook, &mut backend, ui);
-        assert_eq!(*state, 42);
-        assert_eq!(state.previous(), None);
-        state.set_next(43);
-        state.set_next(44);
-        let hook = StateHook::new(|| 42);
-        let state = Hook::<()>::hook(hook, &mut backend, ui);
-        assert_eq!(*state, 44);
-        // not 43
-        assert_eq!(state.previous(), Some(&42));
+    let _ = ctx.run(Default::default(), |ctx| {
+        egui::Area::new("test".into()).show(ctx, |ui| {
+            let mut hook = StateHook::new(|| 42);
+            let mut backend = hook.init(0, &(), None, ui);
+            let state = Hook::<()>::hook(hook, &mut backend, ui);
+            assert_eq!(*state, 42);
+            assert_eq!(state.previous(), None);
+            state.set_next(43);
+            state.set_next(44);
+            let hook = StateHook::new(|| 42);
+            let state = Hook::<()>::hook(hook, &mut backend, ui);
+            assert_eq!(*state, 44);
+            // not 43
+            assert_eq!(state.previous(), Some(&42));
+        });
     });
 }
 
 #[test]
 fn test_update_next() {
     let ctx = egui::Context::default();
-    egui::Area::new("test".into()).show(&ctx, |ui| {
-        let mut hook = StateHook::new(|| 42);
-        let mut backend = hook.init(0, &(), None, ui);
-        let state = Hook::<()>::hook(hook, &mut backend, ui);
+    let _ = ctx.run(Default::default(), |ctx| {
+        egui::Area::new("test".into()).show(ctx, |ui| {
+            let mut hook = StateHook::new(|| 42);
+            let mut backend = hook.init(0, &(), None, ui);
+            let state = Hook::<()>::hook(hook, &mut backend, ui);
 
-        state.update_next(|x| x + 1);
-        state.update_next(|x| x + 1);
-        state.update_next(|x| x + 1);
+            state.update_next(|x| x + 1);
+            state.update_next(|x| x + 1);
+            state.update_next(|x| x + 1);
 
-        let hook = StateHook::new(|| 42);
-        let state = Hook::<()>::hook(hook, &mut backend, ui);
-        assert_eq!(*state, 45);
-        // not 43 or 44
-        assert_eq!(state.previous(), Some(&42));
+            let hook = StateHook::new(|| 42);
+            let state = Hook::<()>::hook(hook, &mut backend, ui);
+            assert_eq!(*state, 45);
+            // not 43 or 44
+            assert_eq!(state.previous(), Some(&42));
+        });
     });
 }
 
 #[test]
 fn test_update_can_use_value_from_set_next() {
     let ctx = egui::Context::default();
-    egui::Area::new("test".into()).show(&ctx, |ui| {
-        let mut hook = StateHook::new(|| 42);
-        let mut backend = hook.init(0, &(), None, ui);
-        let state = Hook::<()>::hook(hook, &mut backend, ui);
+    let _ = ctx.run(Default::default(), |ctx| {
+        egui::Area::new("test".into()).show(ctx, |ui| {
+            let mut hook = StateHook::new(|| 42);
+            let mut backend = hook.init(0, &(), None, ui);
+            let state = Hook::<()>::hook(hook, &mut backend, ui);
 
-        state.set_next(100);
-        state.update_next(|x| x + 1);
+            state.set_next(100);
+            state.update_next(|x| x + 1);
 
-        let hook = StateHook::new(|| 42);
-        let state = Hook::<()>::hook(hook, &mut backend, ui);
-        assert_eq!(*state, 101);
-        assert_eq!(state.previous(), Some(&42));
+            let hook = StateHook::new(|| 42);
+            let state = Hook::<()>::hook(hook, &mut backend, ui);
+            assert_eq!(*state, 101);
+            assert_eq!(state.previous(), Some(&42));
+        });
     });
 }
 
 #[test]
 fn use_previous_backend_on_init() {
     let ctx = egui::Context::default();
-    egui::Area::new("test".into()).show(&ctx, |ui| {
-        let mut hook = StateHook::new(|| 42);
-        let mut backend = hook.init(0, &(), Some(StateBackend::new(Arc::new(100), None)), ui);
-        let state = Hook::<()>::hook(hook, &mut backend, ui);
-        assert_eq!(*state, 42);
-        assert_eq!(state.previous(), Some(&100));
+    let _ = ctx.run(Default::default(), |ctx| {
+        egui::Area::new("test".into()).show(ctx, |ui| {
+            let mut hook = StateHook::new(|| 42);
+            let mut backend = hook.init(0, &(), Some(StateBackend::new(Arc::new(100), None)), ui);
+            let state = Hook::<()>::hook(hook, &mut backend, ui);
+            assert_eq!(*state, 42);
+            assert_eq!(state.previous(), Some(&100));
+        });
     });
 }

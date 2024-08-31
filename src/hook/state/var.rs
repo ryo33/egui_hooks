@@ -62,13 +62,15 @@ impl<T> Drop for Var<T> {
 #[test]
 fn test_drop() {
     let ctx = egui::Context::default();
-    egui::Area::new("test".into()).show(&ctx, |ui| {
-        use crate::UseHookExt as _;
-        let mut var = ui.use_state(|| 42, ()).into_var();
-        let state = var.state();
-        *var = 43;
-        assert_eq!(*state.set_state.backend.load().current, 42);
-        drop(var);
-        assert_eq!(*state.set_state.backend.load().current, 43);
+    let _ = ctx.run(Default::default(), |ctx| {
+        egui::Area::new("test".into()).show(ctx, |ui| {
+            use crate::UseHookExt as _;
+            let mut var = ui.use_state(|| 42, ()).into_var();
+            let state = var.state();
+            *var = 43;
+            assert_eq!(*state.set_state.backend.load().current, 42);
+            drop(var);
+            assert_eq!(*state.set_state.backend.load().current, 43);
+        });
     });
 }
