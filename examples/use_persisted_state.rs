@@ -5,7 +5,7 @@ fn main() {
     eframe::run_native(
         "egui_hooks-example-use_persisted_state",
         Default::default(),
-        Box::new(|_| Box::new(MyApp)),
+        Box::new(|_| Ok(Box::new(MyApp))),
     )
     .unwrap();
 }
