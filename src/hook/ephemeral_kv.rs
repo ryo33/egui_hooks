@@ -45,7 +45,7 @@ impl<K: Eq + std::hash::Hash + Send + Sync + 'static, V: Send + Sync + 'static, 
 
     fn hook(self, backend: &mut Self::Backend, ui: &mut egui::Ui) -> Self::Output {
         let mut lock = backend.write_arc();
-        lock.may_advance_frame(ui.ctx().frame_nr());
+        lock.may_advance_frame(ui.ctx().cumulative_pass_nr());
         EphemeralKv(lock)
     }
 }
@@ -96,7 +96,7 @@ fn clears_on_frame_advance() {
     // next frame
     let _ = ctx.run(Default::default(), |ctx| {
         egui::Area::new("test".into()).show(ctx, |ui| {
-            assert_eq!(ui.ctx().frame_nr(), 1);
+            assert_eq!(ui.ctx().cumulative_pass_nr(), 1);
             let mut hook = EphemeralKvHook::<u32, u32>::new();
             let mut backend = hook.init(0, &(), None, ui);
             let mut kv = Hook::<()>::hook(hook, &mut backend, ui);

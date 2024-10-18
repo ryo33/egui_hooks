@@ -99,7 +99,7 @@ impl UseHookExt for egui::Ui {
     ) -> T::Output {
         // Get hook index
         let context_id = HookContextId {
-            frame: self.ctx().frame_nr(),
+            frame: self.ctx().cumulative_pass_nr(),
             id,
         };
         let hook_index = self.memory_mut(|memory| {
@@ -108,7 +108,7 @@ impl UseHookExt for egui::Ui {
             context.next_hook_index.fetch_add(1, Ordering::SeqCst)
         });
         let dispatcher = Dispatcher::from_ctx(self.ctx());
-        dispatcher.may_advance_frame(self.ctx().frame_nr());
+        dispatcher.may_advance_frame(self.ctx().cumulative_pass_nr());
         let (mut backend, deps) =
             if let Some((backend, old_deps)) = dispatcher.get_backend::<T, D>(id, hook_index) {
                 if deps.partial_eq(&old_deps) {

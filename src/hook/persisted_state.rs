@@ -76,7 +76,7 @@ impl<T: SerializableAny, F: FnOnce() -> T, D: Deps> Hook<D> for PersistedStateHo
     fn hook(self, backend: &mut Self::Backend, ui: &mut egui::Ui) -> Self::Output {
         let mut lock = backend.kv.write();
         // Don't forget to advance frame
-        lock.may_advance_frame(ui.ctx().frame_nr());
+        lock.may_advance_frame(ui.ctx().cumulative_pass_nr());
         // This `or_insert_with` is theoretically never called because the outer backend in
         // the dispatcher has longer lifetime than internal one.
         // Always: dispatcher.get_backend -> this line -> dispatcher.get_backend -> this line
@@ -152,12 +152,15 @@ fn use_persisted_value_on_init() {
 fn init_with_last_backend_updates_with_new_default_value() {
     let ctx = egui::Context::default();
     let inner = StateBackend::new(Arc::new(12345), None);
-    let backend = set_persisted(0, &ctx, inner.clone(), "test");
-    let _ = ctx.run(Default::default(), |ctx| {
+
+    let mut backend = Some(set_persisted(0, &ctx, inner.clone(), "test"));
+
+    let _ = ctx.run(Default::default(), move |ctx| {
         egui::containers::Area::new("test".into()).show(ctx, |ui| {
             let mut hook = PersistedStateHook::new(|| 42);
-            let mut backend = hook.init(0, &(), Some(backend), ui);
-            let state = Hook::<()>::hook(hook, &mut backend, ui);
+            backend = Some(hook.init(0, &(), backend.take(), ui));
+
+            let state = Hook::<()>::hook(hook, &mut backend.as_mut().unwrap(), ui);
             assert_eq!(get_persisted::<i32>(0, &ctx, "test"), Some(42));
             assert_eq!(*state, 42);
             assert_eq!(state.previous(), Some(&12345));
