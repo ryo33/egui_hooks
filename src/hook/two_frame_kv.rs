@@ -45,7 +45,7 @@ impl<K: Clone + Eq + std::hash::Hash + Send + Sync + 'static, V: Send + Sync + '
 
     fn hook(self, backend: &mut Self::Backend, ui: &mut egui::Ui) -> Self::Output {
         let mut lock = backend.write_arc();
-        lock.may_advance_frame(ui.ctx().frame_nr());
+        lock.may_advance_frame(ui.ctx().cumulative_pass_nr());
         TwoFrameKv(lock)
     }
 }
@@ -88,7 +88,7 @@ impl<K: Clone + Eq + std::hash::Hash + SerializableAny, V: SerializableAny, D> H
 
     fn hook(self, backend: &mut Self::Backend, ui: &mut egui::Ui) -> Self::Output {
         let mut lock = backend.write_arc();
-        lock.may_advance_frame(ui.ctx().frame_nr());
+        lock.may_advance_frame(ui.ctx().cumulative_pass_nr());
         TwoFrameKv(lock)
     }
 }
