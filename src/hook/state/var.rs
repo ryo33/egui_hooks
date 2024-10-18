@@ -3,6 +3,7 @@ use std::ops::{Deref, DerefMut};
 use super::State;
 
 /// A version of `State` that can be used like a normal variable. It sends the next value on drop.
+///
 /// This struct is not `Clone` because it would lead multiple dirty states, so use `var.state()` to
 /// get the cloned value of the internal state.
 pub struct Var<T> {

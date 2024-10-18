@@ -11,6 +11,7 @@ use super::{
 };
 
 /// A persisted version of `StateHook`. It will free the persisted value if it's not used for 2 frames in best effort.
+///
 /// The "best effort" means that if no one uses the `PersistedStateHook<T>` with the same `T`, the freeing is postponed until the next time someone uses it.
 pub struct PersistedStateHook<T> {
     inner: StateHookInner<T>,
@@ -95,7 +96,7 @@ fn test_saved_on_init() {
         egui::containers::Area::new("test".into()).show(ctx, |ui| {
             let mut hook = PersistedStateHook::new(|| 42);
             hook.init(0, &(), None, ui);
-            assert_eq!(get_persisted::<i32>(0, &ctx, "test"), Some(42));
+            assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(42));
         });
     });
 }
@@ -109,7 +110,7 @@ fn test_saved_on_set_next() {
             let mut backend = hook.init(0, &(), None, ui);
             let state = Hook::<()>::hook(hook, &mut backend, ui);
             state.set_next(43);
-            assert_eq!(get_persisted::<i32>(0, &ctx, "test"), Some(43));
+            assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(43));
         });
     });
 }
@@ -126,7 +127,7 @@ fn no_deadlock() {
             ui.data_mut(|_data| {
                 state.set_next(43);
             });
-            assert_eq!(get_persisted::<i32>(0, &ctx, "test"), Some(43));
+            assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(43));
         });
     });
 }
@@ -140,10 +141,10 @@ fn use_persisted_value_on_init() {
             let mut hook = PersistedStateHook::new(|| 42);
             let mut backend = hook.init(0, &(), None, ui);
             let state = Hook::<()>::hook(hook, &mut backend, ui);
-            assert_eq!(get_persisted::<i32>(0, &ctx, "test"), Some(12345));
+            assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(12345));
             assert_eq!(*state, 12345);
             state.set_next(43);
-            assert_eq!(get_persisted::<i32>(0, &ctx, "test"), Some(43));
+            assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(43));
         });
     });
 }
@@ -152,16 +153,18 @@ fn use_persisted_value_on_init() {
 fn init_with_last_backend_updates_with_new_default_value() {
     let ctx = egui::Context::default();
     let inner = StateBackend::new(Arc::new(12345), None);
-
     let mut backend = Some(set_persisted(0, &ctx, inner.clone(), "test"));
 
     let _ = ctx.run(Default::default(), move |ctx| {
+        let backend = backend
+            .take()
+            .expect("this closure never called twice in this test though it's FnMut");
         egui::containers::Area::new("test".into()).show(ctx, |ui| {
             let mut hook = PersistedStateHook::new(|| 42);
-            backend = Some(hook.init(0, &(), backend.take(), ui));
+            let mut backend = hook.init(0, &(), Some(backend), ui);
 
-            let state = Hook::<()>::hook(hook, &mut backend.as_mut().unwrap(), ui);
-            assert_eq!(get_persisted::<i32>(0, &ctx, "test"), Some(42));
+            let state = Hook::<()>::hook(hook, &mut backend, ui);
+            assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(42));
             assert_eq!(*state, 42);
             assert_eq!(state.previous(), Some(&12345));
         });

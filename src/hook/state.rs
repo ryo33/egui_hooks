@@ -122,9 +122,13 @@ where
 }
 
 // set_next is a method of this struct instead of returns `(State<T>, impl Fn(impl Fn(T) -> T) -> ())`
+
 /// The container of current state and previous state returned by `use_state`. Clone is cheap as
-/// `Arc` is used internally. If you want to use the state like normal variable without cloning internal value,
-/// you can use `state.into_var()` to get a `VarState` which implements `DerefMut` (but don't forget to call `var.set_next_self()`.
+/// `Arc` is used internally. Use `state.into_var()` for variable-like state.
+///
+/// If you want to use the state like normal variable without cloning internal value,
+/// you can use `state.into_var()` to get a `VarState` which implements `DerefMut`.
+/// This is convenient for passing to `Window::open` or `TextEdit::singleline`.
 pub struct State<T> {
     current: Arc<T>,
     previous: Option<Arc<T>>,

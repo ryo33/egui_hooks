@@ -14,7 +14,7 @@ React Hooks like API for enhancing the ergonomics of `egui::Memory`
 | egui@0.26.0  | 0.3.0              |
 | egui@0.27.0  | 0.4.0              |
 | egui@0.28.0  | 0.5.0              |
-
+| egui@0.29.0  | 0.6.0              |
 
 ## Overview
 
@@ -145,11 +145,11 @@ This is the simplest and recommended way to create a custom hook.
 
 ```rust
 fn use_search(ui: &mut Ui, backend: Backend) -> Option<SearchResults> {
-    let text = ui.use_state(|| String::default(), ()).into_var();
-    ui.text_edit_singleline(&mut *name);
+    let text = ui.use_state(|| String::default(), ()).into_var().into_var();
+    ui.text_edit_singleline(&mut *text);
     ui.use_future(async {
-        backend.search(name.get()).await
-    }, name.state())
+        backend.search(&*text).await
+    }, text.clone())
 }
 ```
 
