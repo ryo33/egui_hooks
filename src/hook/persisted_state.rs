@@ -48,7 +48,6 @@ impl<T: SerializableAny, F: FnOnce() -> T, D: Deps> Hook<D> for PersistedStateHo
         let default = Arc::new((self.inner.take())());
         let backend = if let Some(backend) = backend {
             let previous = backend.inner.load().current.clone();
-            println!("updated ");
             backend.inner.store(default, Some(previous));
             backend
         } else {
