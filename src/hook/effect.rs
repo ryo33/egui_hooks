@@ -6,7 +6,7 @@ pub struct EffectHook<F> {
     pub callback: F,
 }
 
-impl<'a, F: FnOnce() + Send + Sync + 'a, D: Deps> Hook<D> for EffectHook<F> {
+impl<F: FnOnce() + Send + Sync, D: Deps> Hook<D> for EffectHook<F> {
     type Backend = bool;
     type Output = ();
     #[inline]

@@ -15,6 +15,7 @@ React Hooks like API for enhancing the ergonomics of `egui::Memory`
 | egui@0.27.0  | 0.4.0              |
 | egui@0.28.0  | 0.5.0              |
 | egui@0.29.0  | 0.6.0              |
+| egui@0.30.0  | 0.7.0              |
 
 ## Overview
 
@@ -107,7 +108,7 @@ widget is no longer displayed as like the not-persisted one. **You need `persist
 
 ## Usage
 
-1. use_state
+### use_state
 
 ```rust
 // You can reset the initial state by changing the dependency part.
@@ -118,7 +119,17 @@ if ui.button("Increment").clicked() {
 }
 ```
 
-2. use_memo
+### use_persisted_state
+
+```rust
+let count = ui.use_persisted_state(|| 0usize, ());
+ui.label(format!("Count: {}", count));
+if ui.button("Increment").clicked() {
+    count.set_next(*count + 1);
+}
+```
+
+### use_memo
 
 ```rust
 let count = ui.use_state(|| 0usize, ());
@@ -135,6 +146,36 @@ if ui.button("Increment").clicked() {
 }
 ```
 
+### use_hook_as
+
+In the following example, the `use_hook_as` is almost equivalent to call `ui.use_state(|| true, ())` in the show closure but allows you to pass the `open` state to the `Window::open` method.
+
+```rust
+for window in ["window1", "window2", "window3"] {
+    let mut open = ui
+        .use_hook_as(egui::Id::new(window), StateHook::new(|| true), ())
+        .into_var();
+    egui::Window::new(window)
+        .open(&mut open)
+        .show(ui.ctx(), |ui| {
+            // ...
+        });
+}
+```
+
+### use_effect
+
+```rust
+let count = ui.use_state(|| 0usize, ());
+ui.use_effect(|| println!("Count changed to {}", *count), count.clone());
+```
+
+### use_cleanup
+
+```rust
+ui.use_cleanup(|| println!("This widget is no longer displayed"), ());
+```
+
 ## Custom Hooks
 
 You can create your own hooks by the two ways.
@@ -144,12 +185,24 @@ You can create your own hooks by the two ways.
 This is the simplest and recommended way to create a custom hook.
 
 ```rust
-fn use_search(ui: &mut Ui, backend: Backend) -> Option<SearchResults> {
-    let text = ui.use_state(|| String::default(), ()).into_var().into_var();
+fn use_search(ui: &mut Ui, client: &Client) -> Option<SearchResults> {
+    let text = ui.use_state(|| String::default(), ()).into_var();
     ui.text_edit_singleline(&mut *text);
-    ui.use_future(async {
-        backend.search(&*text).await
-    }, text.clone())
+    ui.use_effect(|| client.search(&*text), text.clone())
+}
+```
+
+Or, you can make it to an extension to `egui::Ui` to make it callable as `ui.use_search(client)`.
+
+```rust
+trait UseSearchExt {
+    fn use_search(&mut self, client: &Client) -> Option<SearchResults>;
+}
+
+impl UseSearchExt for egui::Ui {
+    fn use_search(&mut self, client: &Client) -> Option<SearchResults> {
+        // same as the previous example
+    }
 }
 ```
 
