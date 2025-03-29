@@ -28,7 +28,7 @@ pub trait UseHookExt {
     /// Use a hook in the context of a widget with the given id.
     fn use_hook_as<T: Hook<D>, D: Deps>(&mut self, id: egui::Id, hook: T, deps: D) -> T::Output;
     fn use_hook<T: Hook<D>, D: Deps>(&mut self, hook: T, deps: D) -> T::Output;
-    fn use_state<T: Clone + Send + Sync + 'static, D: Deps>(
+    fn use_state<T: Send + Sync + 'static, D: Deps>(
         &mut self,
         default: impl FnOnce() -> T,
         deps: D,
@@ -154,7 +154,7 @@ impl UseHookExt for egui::Ui {
     /// });
     /// ```
     #[inline]
-    fn use_state<T: Clone + Send + Sync + 'static, D: Deps>(
+    fn use_state<T: Send + Sync + 'static, D: Deps>(
         &mut self,
         default: impl FnOnce() -> T,
         deps: D,
