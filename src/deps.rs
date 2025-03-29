@@ -7,9 +7,7 @@ pub trait Deps: Any + PartialEq + Send + Sync {
 impl<T: Any + PartialEq + Send + Sync> Deps for T {
     #[inline]
     fn partial_eq(&self, other: &BoxedDeps) -> bool {
-        other
-            .downcast_ref::<Self>()
-            .map_or(false, |other| self == other)
+        other.downcast_ref::<Self>() == Some(self)
     }
 }
 
