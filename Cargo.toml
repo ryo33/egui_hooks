@@ -27,7 +27,7 @@ serde = { version = "1", features = ["derive"], optional = true }
 parking_lot = { version = "0.12", features = ["arc_lock"] }
 
 [dev-dependencies]
-eframe = { version = "0.31.0" }
+eframe = { version = "0.31" }
 
 [[example]]
 name = "use_persisted_state"
