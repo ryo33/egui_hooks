@@ -140,7 +140,7 @@ impl UseHookExt for egui::Ui {
 
     /// Returns a state that is initialized with the given default value.
     /// A state is resetted to new default value when the dependencies are changed.
-    /// If you need to mutabe the state as like normal variable, put `.into_var()` after this.
+    /// If you need to mutate the state as like normal variable, put `.into_var()` after this.
     ///
     /// # Example
     /// ```
