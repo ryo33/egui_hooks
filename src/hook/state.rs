@@ -108,8 +108,10 @@ where
     ) -> Self::Backend {
         let init = Arc::new(self.inner.take()());
         if let Some(backend) = backend {
-            let guard = backend.load();
-            backend.store(init, Some(guard.current.clone()));
+            {
+                let guard = backend.load();
+                backend.store(init, Some(guard.current.clone()));
+            }
             backend
         } else {
             StateBackend::new(init, None)
