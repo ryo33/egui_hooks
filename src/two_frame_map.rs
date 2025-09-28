@@ -122,7 +122,7 @@ impl<K: Eq + std::hash::Hash + Clone, V> TwoFrameMap<K, V> {
     }
 
     #[inline]
-    pub fn entry(&mut self, key: K) -> std::collections::hash_map::Entry<K, V> {
+    pub fn entry(&mut self, key: K) -> std::collections::hash_map::Entry<'_, K, V> {
         if !self.current.contains_key(&key) {
             if let Some(value) = self.previous.remove(&key) {
                 self.current.insert(key.clone(), value);

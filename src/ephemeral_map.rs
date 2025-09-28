@@ -39,7 +39,7 @@ impl<K: Eq + std::hash::Hash, V> EphemeralMap<K, V> {
     }
 
     #[inline]
-    pub fn entry(&mut self, key: K) -> std::collections::hash_map::Entry<K, V> {
+    pub fn entry(&mut self, key: K) -> std::collections::hash_map::Entry<'_, K, V> {
         self.map.entry(key)
     }
 
