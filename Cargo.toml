@@ -1,6 +1,6 @@
 [package]
 name = "egui_hooks"
-version = "0.8.0"
+version = "0.9.0"
 edition = "2024"
 description = "React Hooks like API for egui"
 categories = ["gui"]
