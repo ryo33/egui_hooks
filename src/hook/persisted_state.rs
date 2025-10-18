@@ -6,8 +6,8 @@ use parking_lot::RwLock;
 use crate::{deps::Deps, dispatcher::Dispatcher, two_frame_map::TwoFrameMap};
 
 use super::{
-    state::{State, StateBackend, StateHookInner},
     Hook,
+    state::{State, StateBackend, StateHookInner},
 };
 
 /// A persisted version of `StateHook`. It will free the persisted value if it's not used for 2 frames in best effort.

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use egui::util::id_type_map::SerializableAny;
-use parking_lot::{lock_api::ArcRwLockWriteGuard, RawRwLock, RwLock};
+use parking_lot::{RawRwLock, RwLock, lock_api::ArcRwLockWriteGuard};
 
 use crate::dispatcher::Dispatcher;
 

@@ -1,6 +1,6 @@
 use std::sync::{
-    atomic::{AtomicUsize, Ordering},
     Arc,
+    atomic::{AtomicUsize, Ordering},
 };
 
 use egui::util::{
@@ -12,6 +12,7 @@ use crate::{
     deps::Deps,
     dispatcher::Dispatcher,
     hook::{
+        Hook,
         cleanup::CleanupHook,
         effect::EffectHook,
         ephemeral_kv::{EphemeralKv, EphemeralKvHook},
@@ -20,7 +21,6 @@ use crate::{
         persisted_state::PersistedStateHook,
         state::{State, StateHook},
         two_frame_kv::{PersistedTwoFrameKvHook, TwoFrameKv, TwoFrameKvHook},
-        Hook,
     },
 };
 

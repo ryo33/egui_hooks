@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use parking_lot::{lock_api::ArcRwLockWriteGuard, RawRwLock, RwLock};
+use parking_lot::{RawRwLock, RwLock, lock_api::ArcRwLockWriteGuard};
 
 use crate::{dispatcher::Dispatcher, ephemeral_map::EphemeralMap};
 
