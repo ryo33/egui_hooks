@@ -1,5 +1,5 @@
 use eframe::egui;
-use egui_hooks::{hook::state::StateHook, UseHookExt as _};
+use egui_hooks::{UseHookExt as _, hook::state::StateHook};
 
 fn main() {
     eframe::run_native(
