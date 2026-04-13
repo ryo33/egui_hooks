@@ -41,8 +41,8 @@ fn cleanup() {
     let ctx = egui::Context::default();
     let called = std::sync::Arc::new(egui::mutex::Mutex::new(Vec::new()));
 
-    let _ = ctx.run(Default::default(), |ctx| {
-        egui::Area::new("test".into()).show(ctx, |ui| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        egui::Area::new("test".into()).show(ui.ctx(), |ui| {
             let cloned = called.clone();
             ui.use_cleanup(move || cloned.lock().push(()), ());
         });
@@ -51,9 +51,9 @@ fn cleanup() {
         assert_eq!(called.lock().len(), 0);
     });
 
-    let _ = ctx.run(Default::default(), |ctx| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
         // ensure the advance of frame
-        egui::Area::new("test2".into()).show(ctx, |ui| {
+        egui::Area::new("test2".into()).show(ui.ctx(), |ui| {
             ui.use_state(|| 0u32, ());
         });
 
@@ -61,9 +61,9 @@ fn cleanup() {
         assert_eq!(called.lock().len(), 0);
     });
 
-    let _ = ctx.run(Default::default(), |ctx| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
         // ensure the advance of frame
-        egui::Area::new("test2".into()).show(ctx, |ui| {
+        egui::Area::new("test2".into()).show(ui.ctx(), |ui| {
             ui.use_state(|| 0u32, ());
         });
 

@@ -18,7 +18,8 @@ React Hooks like API for enhancing the ergonomics of `egui::Memory`
 | egui@0.30.0  | 0.7.0              |
 | egui@0.31.0  | 0.8.0              |
 | egui@0.32.0  | 0.9.0              |
-| egui@0.33.0  | 0.10.0              |
+| egui@0.33.0  | 0.10.0             |
+| egui@0.34.0  | 0.11.0             |
 
 ## Overview
 

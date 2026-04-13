@@ -63,8 +63,8 @@ impl<T> Drop for Var<T> {
 #[test]
 fn test_drop() {
     let ctx = egui::Context::default();
-    let _ = ctx.run(Default::default(), |ctx| {
-        egui::Area::new("test".into()).show(ctx, |ui| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        egui::Area::new("test".into()).show(ui.ctx(), |ui| {
             use crate::UseHookExt as _;
             let mut var = ui.use_state(|| 42, ()).into_var();
             let state = var.state();

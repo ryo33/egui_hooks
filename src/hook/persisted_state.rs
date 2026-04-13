@@ -91,11 +91,11 @@ impl<T: SerializableAny, F: FnOnce() -> T, D: Deps> Hook<D> for PersistedStateHo
 #[test]
 fn test_saved_on_init() {
     let ctx = egui::Context::default();
-    let _ = ctx.run(Default::default(), |ctx| {
-        egui::containers::Area::new("test".into()).show(ctx, |ui| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        egui::containers::Area::new("test".into()).show(ui.ctx(), |ui| {
             let mut hook = PersistedStateHook::new(|| 42);
             hook.init(0, &(), None, ui);
-            assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(42));
+            assert_eq!(get_persisted::<i32>(0, ui.ctx(), "test"), Some(42));
         });
     });
 }
@@ -103,13 +103,13 @@ fn test_saved_on_init() {
 #[test]
 fn test_saved_on_set_next() {
     let ctx = egui::Context::default();
-    let _ = ctx.run(Default::default(), |ctx| {
-        egui::containers::Area::new("test".into()).show(ctx, |ui| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        egui::containers::Area::new("test".into()).show(ui.ctx(), |ui| {
             let mut hook = PersistedStateHook::new(|| 42);
             let mut backend = hook.init(0, &(), None, ui);
             let state = Hook::<()>::hook(hook, &mut backend, ui);
             state.set_next(43);
-            assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(43));
+            assert_eq!(get_persisted::<i32>(0, ui.ctx(), "test"), Some(43));
         });
     });
 }
@@ -117,8 +117,8 @@ fn test_saved_on_set_next() {
 #[test]
 fn no_deadlock() {
     let ctx = egui::Context::default();
-    let _ = ctx.run(Default::default(), |ctx| {
-        egui::containers::Area::new("test".into()).show(ctx, |ui| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        egui::containers::Area::new("test".into()).show(ui.ctx(), |ui| {
             let mut hook = PersistedStateHook::new(|| 42);
             let mut backend = hook.init(0, &(), None, ui);
             let state = Hook::<()>::hook(hook, &mut backend, ui);
@@ -126,7 +126,7 @@ fn no_deadlock() {
             ui.data_mut(|_data| {
                 state.set_next(43);
             });
-            assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(43));
+            assert_eq!(get_persisted::<i32>(0, ui.ctx(), "test"), Some(43));
         });
     });
 }
@@ -135,15 +135,15 @@ fn no_deadlock() {
 fn use_persisted_value_on_init() {
     let ctx = egui::Context::default();
     set_persisted(0, &ctx, StateBackend::new(Arc::new(12345), None), "test");
-    let _ = ctx.run(Default::default(), |ctx| {
-        egui::containers::Area::new("test".into()).show(ctx, |ui| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        egui::containers::Area::new("test".into()).show(ui.ctx(), |ui| {
             let mut hook = PersistedStateHook::new(|| 42);
             let mut backend = hook.init(0, &(), None, ui);
             let state = Hook::<()>::hook(hook, &mut backend, ui);
-            assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(12345));
+            assert_eq!(get_persisted::<i32>(0, ui.ctx(), "test"), Some(12345));
             assert_eq!(*state, 12345);
             state.set_next(43);
-            assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(43));
+            assert_eq!(get_persisted::<i32>(0, ui.ctx(), "test"), Some(43));
         });
     });
 }
@@ -154,16 +154,16 @@ fn init_with_last_backend_updates_with_new_default_value() {
     let inner = StateBackend::new(Arc::new(12345), None);
     let mut backend = Some(set_persisted(0, &ctx, inner.clone(), "test"));
 
-    let _ = ctx.run(Default::default(), move |ctx| {
+    let _ = ctx.run_ui(Default::default(), move |ui| {
         let backend = backend
             .take()
             .expect("this closure never called twice in this test though it's FnMut");
-        egui::containers::Area::new("test".into()).show(ctx, |ui| {
+        egui::containers::Area::new("test".into()).show(ui.ctx(), |ui| {
             let mut hook = PersistedStateHook::new(|| 42);
             let mut backend = hook.init(0, &(), Some(backend), ui);
 
             let state = Hook::<()>::hook(hook, &mut backend, ui);
-            assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(42));
+            assert_eq!(get_persisted::<i32>(0, ui.ctx(), "test"), Some(42));
             assert_eq!(*state, 42);
             assert_eq!(state.previous(), Some(&12345));
         });
@@ -174,34 +174,34 @@ fn init_with_last_backend_updates_with_new_default_value() {
 fn cleanup() {
     let ctx = egui::Context::default();
 
-    let _ = ctx.run(Default::default(), |ctx| {
-        egui::Area::new("test".into()).show(ctx, |ui| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        egui::Area::new("test".into()).show(ui.ctx(), |ui| {
             let mut hook = PersistedStateHook::new(|| 42);
             let mut backend = hook.init(0, &(), None, ui);
             let state = Hook::<()>::hook(hook, &mut backend, ui);
             assert_eq!(*state, 42);
-            assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(42));
+            assert_eq!(get_persisted::<i32>(0, ui.ctx(), "test"), Some(42));
         });
     });
 
-    let _ = ctx.run(Default::default(), |ctx| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
         // ensure the advance of frame
-        egui::Area::new("test2".into()).show(ctx, |ui| {
+        egui::Area::new("test2".into()).show(ui.ctx(), |ui| {
             use crate::UseHookExt;
             ui.use_persisted_state(|| 0, ());
         });
         // Not cleaned since this is the second frame
-        assert_eq!(get_persisted::<i32>(0, ctx, "test"), Some(42));
+        assert_eq!(get_persisted::<i32>(0, ui.ctx(), "test"), Some(42));
     });
 
-    let _ = ctx.run(Default::default(), |ctx| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
         // ensure the advance of frame
-        egui::Area::new("test2".into()).show(ctx, |ui| {
+        egui::Area::new("test2".into()).show(ui.ctx(), |ui| {
             use crate::UseHookExt;
             ui.use_persisted_state(|| 0, ());
         });
         // Cleaned since this is the third frame
-        assert!(get_persisted::<i32>(0, ctx, "test").is_none());
+        assert!(get_persisted::<i32>(0, ui.ctx(), "test").is_none());
     });
 }
 

@@ -13,8 +13,8 @@ fn main() {
 struct MyApp;
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             let reset = ui.use_state(|| 0u16, ());
             let count = ui.use_persisted_state(|| 0usize, reset.clone());
             ui.label(format!("Count: {}", count));

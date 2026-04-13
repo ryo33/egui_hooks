@@ -72,8 +72,8 @@ impl<K: Eq + std::hash::Hash, V> std::ops::DerefMut for EphemeralKv<K, V> {
 fn clears_on_frame_advance() {
     let ctx = egui::Context::default();
 
-    let _ = ctx.run(Default::default(), |ctx| {
-        egui::Area::new("test".into()).show(ctx, |ui| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        egui::Area::new("test".into()).show(ui.ctx(), |ui| {
             let mut hook = EphemeralKvHook::<u32, u32>::new();
             let mut backend = hook.init(0, &(), None, ui);
             let mut kv = Hook::<()>::hook(hook, &mut backend, ui);
@@ -82,7 +82,7 @@ fn clears_on_frame_advance() {
         });
 
         // same frame
-        egui::Area::new("test".into()).show(ctx, |ui| {
+        egui::Area::new("test".into()).show(ui.ctx(), |ui| {
             let mut hook = EphemeralKvHook::<u32, u32>::new();
             let mut backend = hook.init(0, &(), None, ui);
             let mut kv = Hook::<()>::hook(hook, &mut backend, ui);
@@ -94,8 +94,8 @@ fn clears_on_frame_advance() {
     });
 
     // next frame
-    let _ = ctx.run(Default::default(), |ctx| {
-        egui::Area::new("test".into()).show(ctx, |ui| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        egui::Area::new("test".into()).show(ui.ctx(), |ui| {
             assert_eq!(ui.ctx().cumulative_pass_nr(), 1);
             let mut hook = EphemeralKvHook::<u32, u32>::new();
             let mut backend = hook.init(0, &(), None, ui);

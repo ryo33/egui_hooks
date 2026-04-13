@@ -145,8 +145,8 @@ impl UseHookExt for egui::Ui {
     /// # Example
     /// ```
     /// let ctx = egui::Context::default();
-    /// let _ = ctx.run(Default::default(), |ctx| {
-    ///     egui::Area::new("test".into()).show(ctx, |ui| {
+    /// let _ = ctx.run_ui(Default::default(), |ui| {
+    ///     egui::Area::new("test".into()).show(ui.ctx(), |ui| {
     ///         use egui_hooks::UseHookExt as _;
     ///         let mut state = ui.use_state(|| 42, ());
     ///         let mut var_state = ui.use_state(|| 42, ()).into_var();
