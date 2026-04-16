@@ -116,24 +116,24 @@ fn test_clears_the_unused_key() {
     use crate::UseHookExt;
     let ctx = egui::Context::default();
 
-    let _ = ctx.run(Default::default(), |ctx| {
-        egui::Area::new("test".into()).show(ctx, |ui| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        egui::Area::new("test".into()).show(ui.ctx(), |ui| {
             let mut kv = ui.use_2f_kv::<u32, u32>();
             kv.insert(0, 0);
             kv.insert(1, 1);
         });
     });
 
-    let _ = ctx.run(Default::default(), |ctx| {
-        egui::Area::new("test".into()).show(ctx, |ui| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        egui::Area::new("test".into()).show(ui.ctx(), |ui| {
             let mut kv = ui.use_2f_kv::<u32, u32>();
             assert_eq!(kv.get(&0), Some(&0));
             // not access to the key 1
         });
     });
 
-    let _ = ctx.run(Default::default(), |ctx| {
-        egui::Area::new("test".into()).show(ctx, |ui| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        egui::Area::new("test".into()).show(ui.ctx(), |ui| {
             let mut kv = ui.use_2f_kv::<u32, u32>();
             assert_eq!(kv.get(&0), Some(&0));
             assert_eq!(kv.get(&1), None);
@@ -146,24 +146,24 @@ fn test_clears_the_persisted_unused_key() {
     use crate::UseHookExt;
     let ctx = egui::Context::default();
 
-    let _ = ctx.run(Default::default(), |ctx| {
-        egui::Area::new("test".into()).show(ctx, |ui| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        egui::Area::new("test".into()).show(ui.ctx(), |ui| {
             let mut kv = ui.use_persisted_2f_kv::<u32, u32>();
             kv.insert(0, 0);
             kv.insert(1, 1);
         });
     });
 
-    let _ = ctx.run(Default::default(), |ctx| {
-        egui::Area::new("test".into()).show(ctx, |ui| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        egui::Area::new("test".into()).show(ui.ctx(), |ui| {
             let mut kv = ui.use_persisted_2f_kv::<u32, u32>();
             assert_eq!(kv.get(&0), Some(&0));
             // not access to the key 1
         });
     });
 
-    let _ = ctx.run(Default::default(), |ctx| {
-        egui::Area::new("test".into()).show(ctx, |ui| {
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        egui::Area::new("test".into()).show(ui.ctx(), |ui| {
             let mut kv = ui.use_persisted_2f_kv::<u32, u32>();
             assert_eq!(kv.get(&0), Some(&0));
             assert_eq!(kv.get(&1), None);
